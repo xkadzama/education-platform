@@ -1,9 +1,14 @@
 from fastapi import APIRouter
 
+from app.schemas.auth import UserRegisterRequest
 
-router = APIRouter()
+
+router = APIRouter(
+	prefix='/auth',
+
+)
 
 
-@router.get('/auth')
-async def auth():
-	return {'auth': 200}
+@router.post('/register')
+async def register(user: UserRegisterRequest):
+	return user

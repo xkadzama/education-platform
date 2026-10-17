@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from backend.app.api import auth
+from app.api import auth
 
 
 app = FastAPI()
