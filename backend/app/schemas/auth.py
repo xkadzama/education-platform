@@ -6,22 +6,17 @@ from typing import Optional
 # 1. Модель ЗАПРОСА (то, что присылает фронтенд)
 class UserRegisterRequest(BaseModel):
 	email: EmailStr = Field(..., description="Электронная почта пользователя")
-
 	password: str = Field(
 		...,
 		min_length=8,
 		max_length=50,
 		description="Пароль должен быть не менее 8 символов"
 	)
-
 	first_name: str = Field(..., min_length=2, max_length=50, description="Имя")
 	last_name: str = Field(..., min_length=2, max_length=50, description="Фамилия")
-
-	# Роль по умолчанию "student".
-	# Мы не даем возможность зарегистрироваться как "admin" через открытое API
 	role: str = Field(default="student", pattern="^(student|teacher)$")
 
-	# Дополнительная валидация пароля (опционально, но рекомендуется)
+
 	@model_validator(mode='after')
 	def check_password_strength(self) -> 'UserRegisterRequest':
 		if not any(char.isdigit() for char in self.password):

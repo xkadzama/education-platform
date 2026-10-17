@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.schemas.auth import UserRegisterRequest
+from app.schemas.auth import UserRegisterRequest  # type: ignore
 
 
 router = APIRouter(
