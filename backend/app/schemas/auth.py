@@ -6,7 +6,7 @@ from typing import Optional
 # 1. Модель ЗАПРОСА (то, что присылает фронтенд)
 class UserRegisterRequest(BaseModel):
 	email: EmailStr = Field(..., description="Электронная почта пользователя")
-	password: str = Field(
+	hashed_password: str = Field(
 		...,
 		min_length=8,
 		max_length=50,
@@ -19,9 +19,9 @@ class UserRegisterRequest(BaseModel):
 
 	@model_validator(mode='after')
 	def check_password_strength(self) -> 'UserRegisterRequest':
-		if not any(char.isdigit() for char in self.password):
+		if not any(char.isdigit() for char in self.hashed_password):
 			raise ValueError('Пароль должен содержать хотя бы одну цифру')
-		if not any(char.isupper() for char in self.password):
+		if not any(char.isupper() for char in self.hashed_password):
 			raise ValueError('Пароль должен содержать хотя бы одну заглавную букву')
 		return self
 
