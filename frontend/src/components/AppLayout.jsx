@@ -2,19 +2,20 @@ import { useEffect, useState } from 'react'
 import AppHeader from './AppHeader'
 import Sidebar from './Sidebar'
 
-// Каркас защищённых страниц по эталонному сниппету (Preline hs-overlay):
-//  • сайдбар — fixed-панель слева: открыта 256px; при закрытии схлопывается
-//    до 0 и скрыта ПОЛНОСТЬЮ (анимация ширины через @property --sb-width);
-//  • бургер живёт ВНУТРИ header панели на одном уровне с брендом: открыт —
-//    у правого края чёрного фона, закрыт — плавно переезжает к левому краю
-//    сайта и остаётся единственной видимой частью меню (клик открывает);
-//  • контент сдвигается через margin-inline-start = фактической ширине
-//    панели (content-push: 256px ↔ 0);
-//  • по умолчанию панель открыта ([--opened:lg]).
+// Каркас защищённых страниц по эталонному Preline-сниппету
+// #hs-sidebar-content-push-to-mini-sidebar (behavior: content push to mini):
+//  • сайдбар — fixed-панель слева с состояниями (как hs-overlay + minifier):
+//      'open'  — полная ширина 256px (w-64, по умолчанию);
+//      'mini'  — узкий рельс 52px (hs-overlay-minified:w-13), видны иконки;
+//                на десктопе панель скрытой НЕ бывает (lg:block) — toggle
+//                работает как minifier open ⇄ mini;
+//      'hidden'— только мобильные (<1024px): панель уезжает за край
+//                (-translate-x-full), открывает её кнопка «Open» ниже;
+//  • контент сдвигается через margin-inline-start = фактической ширине панели
+//    (content-push: 256px ↔ 52px ↔ 0 на мобильных);
+//  • переходы включаются только после первого кадра (ready).
 export default function AppLayout({ children }) {
-  const [open, setOpen] = useState(true)
-  // Переходы включаем только после первого кадра, чтобы при загрузке
-  // страница не анимировала сама себя.
+  const [state, setState] = useState('open')   // 'open' | 'mini' | 'hidden'
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
@@ -22,19 +23,39 @@ export default function AppLayout({ children }) {
     return () => cancelAnimationFrame(raf)
   }, [])
 
-  return (
-    <div className={`app-shell${ready ? ' is-ready' : ''}${open ? ' sidebar-open' : ''}`}>
-      <AppHeader />
-      {/* --sb-live дублирует анимируемую ширину панели для сабтрея контента
-          (transition маргинала синхронен с width-анимацией .sidebar) */}
-      <div
-        className={`app-body${open ? ' app-body-open' : ''}`}
-        style={{ '--sb-live': open ? 'var(--sidebar-w)' : 'var(--sidebar-w-rail)' }}
-      >
-        <Sidebar open={open} setOpen={setOpen} />
+  // На десктопе панель не прячется полностью (lg:block): 'hidden' трактуется
+  // как мини-рельс; реальное скрытие (translateX) происходит только <1024px.
+  const widthVar =
+    state === 'open' ? 'var(--sidebar-w)' :
+    'var(--sidebar-w-mini)'
 
-        {/* Content (в эталоне — div с ms-64). Бургер перенесён внутрь
-            сайдбара (header панели), здесь только контент. */}
+  return (
+    <div className={`app-shell sidebar-state-${state}${ready ? ' is-ready' : ''}`}
+      style={{ '--sb-live': widthVar }}>
+      <AppHeader />
+      {/* --sb-live = фактическая ширина панели: content-push контента
+          (.app-content) и сдвиг шапки (.app-header-inner) наследуют токен
+          от app-shell; transition'ы синхронны с анимацией .sidebar (0.3s) */}
+      <div className="app-body">
+        {/* Navigation Toggle (эталон: div.lg:hidden py-16 text-center + кнопка
+            «Open») — вне панели, видна только на мобильных когда панель скрыта */}
+        <div className="sidebar-open-wrap">
+          <button
+            type="button"
+            className="sidebar-open-btn"
+            aria-haspopup="dialog"
+            aria-expanded={state !== 'hidden'}
+            aria-controls="sidebar-panel"
+            aria-label="Переключить навигацию"
+            onClick={() => setState(state === 'hidden' ? 'open' : 'hidden')}
+          >
+            Open
+          </button>
+        </div>
+
+        <Sidebar state={state} setState={setState} ready={ready} />
+
+        {/* Content (в эталоне — div с sm:hs-overlay-layout-open:ms-64) */}
         <main className="app-content">
           <div className="container app-content-inner">{children}</div>
         </main>
