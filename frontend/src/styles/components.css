@@ -220,25 +220,23 @@ code {
   justify-content: space-between;
 }
 
-/* Маленькое окошко справа сверху: аватар + имя, клик → /profile */
+/* Аватарка справа сверху: фото/инициалы + имя без рамки (flat design) */
 .avatar-button {
   display: inline-flex;
   align-items: center;
   gap: var(--space-xs);                  /* 8px */
   padding: 6px 12px 6px 6px;
-  background: var(--color-background);
-  border: var(--border-input);
-  border-radius: var(--radius);          /* 8px */
+  background: transparent;               /* без обводки и фона — только аватар + имя */
+  border: none;
+  border-radius: var(--radius);
   cursor: pointer;
   font-family: var(--font-body);
   font-size: var(--text-caption);        /* 14px */
   color: var(--color-primary);
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+  transition: background-color 0.15s ease;
 }
 .avatar-button:hover {
-  border-color: var(--color-primary);
-  background: var(--color-hover);
-  color: var(--color-background);
+  background: var(--color-border);       /* лёгкая подсветка вместо рамки */
 }
 
 .avatar {
@@ -278,7 +276,7 @@ code {
   transition: transform 0.15s ease;
 }
 .avatar-caret.open { transform: rotate(180deg); }
-.avatar-button:hover .avatar-caret { color: var(--color-background); }
+.avatar-button:hover .avatar-caret { color: var(--color-secondary-text); }
 
 .dropdown {
   position: absolute;
@@ -377,3 +375,16 @@ code {
   gap: var(--space-sm);
 }
 .dashboard-actions .btn { flex: 1; }
+
+/* Ссылка возврата на главную (страница профиля) */
+.back-link {
+  display: inline-block;
+  margin-bottom: var(--space-sm);        /* 16px до заголовка */
+  font-size: var(--text-caption);        /* 14px */
+  color: var(--color-secondary-text);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+.back-link:hover {
+  color: var(--color-primary);
+}

@@ -23,7 +23,6 @@ export default function Dashboard() {
             <ul className="user-info">
               <li><strong>Email</strong> {user.email}</li>
               <li><strong>Роль</strong> {user.role}</li>
-              <li><strong>ID</strong> {user.id}</li>
             </ul>
 
             <div className="dashboard-actions">

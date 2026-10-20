@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { Avatar } from '../components/AvatarButton'
@@ -41,12 +42,14 @@ export default function Profile() {
     { label: 'Фамилия', value: user.last_name },
     { label: 'Email', value: user.email },
     { label: 'Роль', value: user.role },
-    { label: 'ID', value: user.id },
   ]
 
   return (
     <div className="page">
       <div className="container page-narrow">
+        {/* Возврат на главную */}
+        <Link to="/" className="back-link">← На главную</Link>
+
         <h1 className="page-title">Мой профиль</h1>
 
         <section className="card card-wide">
