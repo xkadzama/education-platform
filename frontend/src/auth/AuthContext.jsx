@@ -3,10 +3,11 @@ import { api } from '../api/client'
 import { saveTokens, getTokens, clearTokens } from './tokenStorage'
 import { mockUser, mockTokens } from './mockUser'
 
-// Демо-режим (DEV ONLY): бэкенд FastAPI + PostgreSQL недоступен в этой среде,
-// поэтому при сетевой ошибке запроса используем mock-пользователя вместо
-// редиректа на /login. Реальное поведение сохраняется, когда API доступен.
-const DEMO_MODE = import.meta.env.DEV
+// Демо-режим включается ТОЛЬКО по явному флагу VITE_DEMO_MODE=true (файл
+// frontend/.env.local) — например, когда бэкенда нет под рукой. По умолчанию
+// работает живая интеграция: ответ сервера есть — берём данные из него;
+// 401/иные ошибки — штатный выход на /login.
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true'
 
 const AuthContext = createContext(null)
 
@@ -22,13 +23,12 @@ export function AuthProvider({ children }) {
       .get('/auth/me')
       .then((res) => setUser(res.data))
       .catch((err) => {
-        // Бэкенд вообще не ответил (нет сети/сервер выключен) — в dev
-        // подставляем демо-пользователя, чтобы UI оставался рабочим.
-        // Настоящий HTTP-ответ (401 и т.п.) — штатный выход через clearTokens.
+        // Демо-режим (включён явно): бэкенд не ответил — подставляем mock.
         if (DEMO_MODE && !err.response) {
           saveTokens(mockTokens)
           setUser(mockUser)
         } else {
+          // Живая интеграция: токен не прошёл проверку сервера — выходим.
           clearTokens()
         }
       })
