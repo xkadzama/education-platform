@@ -1,6 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
 import { api } from '../api/client'
 import { saveTokens, getTokens, clearTokens } from './tokenStorage'
+import { mockUser, mockTokens } from './mockUser'
+
+// Демо-режим (DEV ONLY): бэкенд FastAPI + PostgreSQL недоступен в этой среде,
+// поэтому при сетевой ошибке запроса используем mock-пользователя вместо
+// редиректа на /login. Реальное поведение сохраняется, когда API доступен.
+const DEMO_MODE = import.meta.env.DEV
 
 const AuthContext = createContext(null)
 
@@ -15,7 +21,17 @@ export function AuthProvider({ children }) {
     api
       .get('/auth/me')
       .then((res) => setUser(res.data))
-      .catch(() => clearTokens())
+      .catch((err) => {
+        // Бэкенд вообще не ответил (нет сети/сервер выключен) — в dev
+        // подставляем демо-пользователя, чтобы UI оставался рабочим.
+        // Настоящий HTTP-ответ (401 и т.п.) — штатный выход через clearTokens.
+        if (DEMO_MODE && !err.response) {
+          saveTokens(mockTokens)
+          setUser(mockUser)
+        } else {
+          clearTokens()
+        }
+      })
       .finally(() => setLoading(false))
   }, [])
 
@@ -35,16 +51,31 @@ export function AuthProvider({ children }) {
     form.append('username', email)
     form.append('password', password)
 
-    const res = await api.post('/auth/login', form)
-    saveTokens(res.data)
-    const me = await api.get('/auth/me')
-    setUser(me.data)
-    return me.data
+    try {
+      const res = await api.post('/auth/login', form)
+      saveTokens(res.data)
+      const me = await api.get('/auth/me')
+      setUser(me.data)
+      return me.data
+    } catch (err) {
+      // Демо-режим без бэкенда: вход разрешаем с любой парой email/пароль
+      if (DEMO_MODE && !err.response) {
+        saveTokens(mockTokens)
+        setUser({ ...mockUser, first_name: email.split('@')[0] || mockUser.first_name })
+        return mockUser
+      }
+      throw err
+    }
   }, [])
 
   // Регистрация: POST /auth/register принимает JSON
   const register = useCallback(async (data) => {
-    await api.post('/auth/register', data)
+    try {
+      await api.post('/auth/register', data)
+    } catch (err) {
+      // Демо-режим без бэкенда: «регистрируем» локально и сразу входим
+      if (!(DEMO_MODE && !err.response)) throw err
+    }
     // После регистрации сразу входим, чтобы пользователь попал в приложение
     return login(data.email, data.password)
   }, [login])
