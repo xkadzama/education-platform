@@ -20,58 +20,12 @@ import { NavLink } from 'react-router-dom'
 // Цвета эталона (gray/neutral) НЕ копируем — наша палитра: чёрный фон панели,
 // белый текст, hover — белый фон + тёмный текст, активный пункт — --color-accent.
 
+// По просьбе пользователя в меню оставлен только пункт «Уроки»;
+// аккордеоны (Курсы/Профиль/Проекты), Расписание и Документация удалены.
+// Компоненты AccordionSection и остальные иконки сохранены на случай возврата
+// пунктов в будущем.
 const NAV = [
   { kind: 'link', to: '/lessons', label: 'Уроки', icon: 'book' },
-  {
-    kind: 'accordion',
-    id: 'courses',
-    label: 'Курсы',
-    icon: 'layers',
-    children: [
-      {
-        kind: 'accordion',
-        id: 'frontend',
-        label: 'Frontend',
-        children: [
-          { kind: 'link', to: '/lessons', label: 'HTML и CSS' },
-          { kind: 'link', to: '/lessons', label: 'JavaScript' },
-          { kind: 'link', to: '/lessons', label: 'React' },
-        ],
-      },
-      {
-        kind: 'accordion',
-        id: 'design',
-        label: 'Дизайн',
-        children: [
-          { kind: 'link', to: '/lessons', label: 'Figma' },
-          { kind: 'link', to: '/lessons', label: 'Основы композиции' },
-        ],
-      },
-    ],
-  },
-  {
-    kind: 'accordion',
-    id: 'profile',
-    label: 'Профиль',
-    icon: 'settings',
-    children: [
-      { kind: 'link', to: '/profile', label: 'Личные данные' },
-      { kind: 'link', to: '/profile', label: 'Настройки' },
-      { kind: 'link', to: '/profile', label: 'Подписка' },
-    ],
-  },
-  {
-    kind: 'accordion',
-    id: 'projects',
-    label: 'Проекты',
-    icon: 'folder',
-    children: [
-      { kind: 'link', to: '/lessons', label: 'Мои проекты' },
-      { kind: 'link', to: '/lessons', label: 'Шаблоны' },
-    ],
-  },
-  { kind: 'link', to: '/', label: 'Расписание', icon: 'calendar', badge: 'Новое' },
-  { kind: 'link', to: '/', label: 'Документация', icon: 'docs' },
 ]
 
 // Иконки size-4 stroke-2 — SVG из эталонного сниппета (lucide).
