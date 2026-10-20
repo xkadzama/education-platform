@@ -286,6 +286,12 @@ code {
 /* ---------- Выпадающее меню аватарки (Профиль / Выйти) ---------- */
 .avatar-menu-wrap { position: relative; }
 
+/* Логотип-бренд убран из шапки — в flex-контейнере остался единственный
+   дочерний элемент (.avatar-menu-wrap), и justify-content: space-between его
+   не прижимает: без маргина-автомата он встал бы слева (на месте логотипа).
+   margin-inline-start: auto возвращает аватар к правому краю шапки */
+.app-header .avatar-menu-wrap { margin-inline-start: auto; }
+
 .avatar-caret {
   font-size: 12px;
   color: var(--color-secondary-text);
