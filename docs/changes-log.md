@@ -221,3 +221,72 @@
 
 **Статус:** изменения в рабочем дереве (Sidebar.jsx, AppLayout.jsx, components.css, журнал) — коммит
 не создан; при следующей работе закоммитить и дописать хеш сюда.
+
+---
+
+## 2026-10-21 (2). Сайдбар: бургер перенесён внутрь панели, кнопка X удалена
+
+**Задача (по словам пользователя):** убрать из header сайдбара обёртку с круглой
+кнопкой закрытия X (`sidebar-close-wrap`/`sidebar-close-btn`); удалить
+`<span class="sr-only">Переключить навигацию</span>` у бургера; перенести саму
+кнопку-бургер (panel-left icon, `sidebar-burger`) из контентного топбара ВНУТРЬ
+сайдбара.
+
+**Изменения по файлам:**
+
+1. `frontend/src/components/Sidebar.jsx`
+   - Удалён блок `<div className="sidebar-close-wrap"><button className="sidebar-close-btn">…X…</button></div>`
+     вместе с его sr-only «Закрыть».
+   - В `.sidebar-header` после бренда вставлен бургер: button.sidebar-burger
+     (aria-haspopup="dialog", aria-expanded={open}, aria-controls="sidebar-panel",
+     aria-label «Свернуть меню»/«Открыть меню», onClick — toggle open) с двумя
+     svg size-8-кнопки: `.sidebar-burger-open` (chevron «открыть» — показывается,
+     когда панель свёрнута) и `.sidebar-burger-close` (chevron «свернуть» — когда
+     открыта). `sr-only «Переключить навигацию»` НЕ добавлен (пользователь просил
+     удалить). Комментарий-шапка файла обновлён.
+   - Логика Escape/фокус-возврата не менялась.
+
+2. `frontend/src/components/AppLayout.jsx`
+   - Полностью удалён `<div className="content-topbar">` с бургером из контента;
+     main.app-content теперь содержит только `.container.app-content-inner`.
+     Пропсы Sidebar не изменились (open/setOpen). Комментарий каркаса обновлён.
+
+3. `frontend/src/styles/components.css` (блок сайдбара ~393–782)
+   - Новый токен `--sidebar-handle: 28px` — видимый край свернутой панели.
+   - Схема анимации изменена: раньше базовое состояние .sidebar было
+     translateX(-100%)+visibility:hidden, открытие через .sidebar-open. Теперь
+     БАЗА = открыто (transform:none), а `.sidebar:not(.sidebar-open)` уезжает на
+     `translateX(-(var(--sidebar-w) - var(--sidebar-handle)))`, т.е. у левого края
+     экрана остаётся полоска 28px («ручка») — иначе после переноса бургера внутрь
+     панели свернуть/развернуть меню было бы нечем. visibility убрана полностью.
+   - `.sidebar::before` — декоративная светлая полоска на правом краю панели
+     (rgba(255,255,255,.07) + левая граница), скрыта в открытом состоянии.
+     Кликабельность свернутой панели реализована явно: у
+     `.sidebar:not(.sidebar-open)` заданы `cursor: pointer` и onClick-обработчик
+     на самой панели (срабатывает только в свёрнутом состоянии и только если клик
+     не по внутренней кнопке/ссылке — они stopPropagation не требуют, т.к. вся
+     панель кроме видимых 28px уехала за экран). Т.е. раскрытие — клик по любой
+     точке видимой полоски-края.
+   - `.sidebar-burger` перестилизован под жизнь на ЧЁРНОМ фоне header панели:
+     цвет rgba(255,255,255,.85), hover — белый фон + чёрный текст (требование
+     «hover с белым фоном»), focus-visible #ddd. Переключение иконок: правила
+     `.app-body-open …` заменены на `.sidebar:not(.sidebar-open) …` (теперь бургер
+     внутри панели).
+   - Удалены правила `.content-topbar`, `.sidebar-close-wrap`, `.sidebar-close-btn`.
+   - Медиа ≤1024px: закрытая панель уезжает полностью (-100%), декор-ручка
+     скрывается (overlay-режим, backdrop ::after не менялся).
+   - .is-ready transition обновлён (visibility больше нет). prefers-reduced-motion
+     сохранён. Мусорный дубликат @media ≤768px от старой grid-реализации
+     (.sidebar-rail/.sidebar-nav/app-body.is-ready) удалён целиком, оставлен
+     маленький отступ контента.
+
+**Проверка:** `npm run build` — успешно (397ms); oxlint по Sidebar.jsx,
+AppLayout.jsx — 0 warnings/errors; grep — упоминаний sidebar-close/content-topbar
+и sr-only в изменённых компонентах не осталось. Ожидаемое поведение: загрузка —
+панель открыта, в её header бренд + бургер (иконка «свернуть»); клик по бургеру —
+панель уезжает влево, у края экрана остаётся кликабельная полоска-край 28px
+(курсор pointer) и контент растягивается на всю ширину; клик по полоске/Escape —
+панель возвращается, бургер снова показывает иконку «свернуть».
+
+**Статус:** изменения в рабочем дереве (Sidebar.jsx, AppLayout.jsx,
+components.css, журнал) — добавлены в staging area (`git add`), коммит не создан.
