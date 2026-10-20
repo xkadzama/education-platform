@@ -194,27 +194,17 @@ export default function Sidebar({ state, setState, ready }) {
 
   return (
     <>
-      {/* Navigation Toggle (эталон: div.lg:hidden с кнопкой «Open») —
-          показывается на мобильных, когда панель скрыта */}
-      <div className="sidebar-open-wrap">
-        <button
-          type="button"
-          className="sidebar-open-btn"
-          aria-haspopup="dialog"
-          aria-expanded={isOpen}
-          aria-controls="sidebar-panel"
-          aria-label="Открыть меню"
-          onClick={() => setState('open')}
-        >
-          Open
-        </button>
-      </div>
-
-      {/* Sidebar (эталон: #hs-sidebar-content-push-to-mini-sidebar) */}
+      {/* Sidebar (эталон: #hs-sidebar-content-push-to-mini-sidebar).
+          В эталоне классы hs-overlay-open / hs-overlay-minified навешивает JS
+          Preline; здесь их эмулируют React-классы .sidebar-open /
+          .sidebar-minified. Десктоп: панель никогда не скрывается полностью
+          (lg:block) — toggle работает как minifier (w-64 ⇄ w-13). Мобильные:
+          без .sidebar-open панель уезжает за край (-translate-x-full),
+          открывает её внешняя кнопка «Open» (в AppLayout, lg:hidden). */}
       <div
         ref={panelRef}
         id="sidebar-panel"
-        className={`sidebar${isOpen ? ' sidebar-open' : ''}${isMini ? ' sidebar-minified' : ''}${ready ? ' is-ready' : ''}`}
+        className={`sidebar hs-overlay${isOpen ? ' sidebar-open' : ''}${isMini ? ' sidebar-minified' : ''}${ready ? ' is-ready' : ''}`}
         role="dialog"
         tabIndex={-1}
         aria-label="Сайдбар"
@@ -237,7 +227,7 @@ export default function Sidebar({ state, setState, ready }) {
             </div>
 
             <div className="sidebar-minify-wrap">
-              {/* Toggle Button (Minify navigation) */}
+              {/* Toggle Button (Minify navigation, data-hs-overlay-minifier) */}
               <button
                 ref={toggleRef}
                 type="button"

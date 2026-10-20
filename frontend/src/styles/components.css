@@ -466,10 +466,11 @@ code {
   color: #ffffff;
   overflow-x: hidden;                          /* overflow-x-hidden из эталона */
 }
-/* Скрытая панель не ловит клики (на мобильных уезжает за край, на десктопе
-   схлопнута в 0) */
-.sidebar:not(.sidebar-open) {
-  pointer-events: none;
+/* Скрытая панель ловит клики только на мобильных в открытом overlay-состоянии;
+   закрытая (translateX за край) не перехватывает ничего. На десктопе скрытого
+   состояния нет (lg:block), pointer-events не нужен */
+@media (max-width: 1024px) {
+  .sidebar:not(.sidebar-open) { pointer-events: none; }
 }
 @media (max-width: 1024px) {
   /* Мобильные (hidden / -translate-x-full + hs-overlay-open:translate-x-0):
@@ -478,10 +479,9 @@ code {
   .sidebar.sidebar-open { transform: translateX(0); }
 }
 @media (min-width: 1025px) {
-  /* Десктоп (lg:block lg:translate-x-0): скрытие — схлопывание ширины в 0
-     (content push), никаких fixed-трюков с кнопкой больше нет.
-     Мини-режим (hs-overlay-minified:w-13): рельс 52px с одними иконками */
-  .sidebar:not(.sidebar-open) { --sb-width: 0px; }
+  /* Десктоп (lg:block lg:translate-x-0): панель никогда не скрывается —
+     toggle работает как minifier (hs-overlay-minified:w-13 → рельс 52px
+     с одними иконками). Никаких состояний width:0 / translateX здесь нет. */
   .sidebar.sidebar-minified { --sb-width: var(--sidebar-w-mini); }
 }
 
@@ -784,8 +784,9 @@ code {
 .sidebar-open-btn:hover { background: #f2f2f2; }
 .sidebar-open-btn:focus-visible { outline: none; background: #e8e8e8; }
 @media (max-width: 1024px) {
-  /* lg:hidden + показ только в скрытом состоянии (role переключателя на
-     мобильных берёт на себя эта кнопка, X внутри панели — закрывает) */
+  /* lg:hidden из эталона + показ только в скрытом состоянии: на мобильных
+     панель по умолчанию открыта ('open'), X внутри панели закрывает её
+     (auto-close), а «Open» — единственный способ открыть снова */
   .app-shell.sidebar-state-hidden .sidebar-open-wrap {
     display: block;
     position: fixed;
@@ -825,16 +826,23 @@ code {
 /* Переходы включаем только после первого кадра (.is-ready на app-shell),
    чтобы при загрузке панель не анимировала сама себя. Анимация ширины —
    @property --sb-width (наследуется всеми детьми — единый синхронный 0.3s);
-   translateX (mobile), маргинал контента и brand-opacity — тем же таймингом.
-   pointer-events переключаем с задержкой: при закрытии — после окончания
-   схлопывания, при открытии — сразу. */
-.sidebar.is-ready {
-  transition: --sb-width 0.3s ease, transform 0.3s ease,
-              pointer-events 0s linear 0.3s;
+   translateX (mobile) и маргинал контента — тем же таймингом.
+   pointer-events переключаем с задержкой только на мобильных: при закрытии
+   оверлея — после окончания уезда, при открытии — сразу. */
+@media (max-width: 1024px) {
+  .sidebar.is-ready {
+    transition: --sb-width 0.3s ease, transform 0.3s ease,
+                pointer-events 0s linear 0.3s;
+  }
+  .sidebar.is-ready.sidebar-open {
+    transition: --sb-width 0.3s ease, transform 0.3s ease,
+                pointer-events 0s linear 0s;
+  }
 }
-.sidebar.is-ready.sidebar-open {
-  transition: --sb-width 0.3s ease, transform 0.3s ease,
-              pointer-events 0s linear 0s;
+@media (min-width: 1025px) {
+  .sidebar.is-ready {
+    transition: --sb-width 0.3s ease, transform 0.3s ease;
+  }
 }
 .app-shell:not(.is-ready) .sidebar,
 .app-shell:not(.is-ready) .app-content,

@@ -594,3 +594,38 @@ components.css, журнал) — будут добавлены в staging area 
 - Мобильные (<1024px): overlay + затемнение сохранены; закрытая панель невидима, бургер у левого края; контент не сдвигается (margin 0 !important).
 
 **Статус:** изменения в рабочем дереве (components.css, AppLayout.jsx, Sidebar.jsx, журнал) — добавлены в staging area (`git add`), коммит не создан.
+
+---
+
+## 2026-10-21 (финал) — Сайдбар приведён ТОЧНО к эталонному Preline-сниппету #hs-sidebar-content-push-to-mini-sidebar
+
+**Задача (запрос пользователя, повторён трижды):** «Просто сделай точно такой же сайдбар» + полный HTML/CSS (Tailwind) эталонного сниппета Preline с поведением «content push to mini sidebar». Предыдущие реализации отклонялись, т.к. добавляли собственные механики (fixed-бургер у левого края сайта, схлопывание панели в 0 на десктопе и т.п.). В этой итерации поведение выровнено 1:1 с эталоном, включая семантику классов hs-overlay / hs-overlay-minified.
+
+**Что именно в эталоне и как перенесено:**
+
+1. `frontend/src/components/AppLayout.jsx`
+   - **Состояния панели**: `'open' | 'mini' | 'hidden'`. Ключевое изменение против прошлой итерации: на ДЕСКТОПЕ панель никогда не скрывается полностью — в эталоне `lg:block lg:translate-x-0` (панель всегда видима), а toggle (`data-hs-overlay-minifier`) работает как минификатор w-64 ⇄ w-13. Поэтому токен ширины `--sb-live` теперь: `open → var(--sidebar-w)` (256px), ЛЮБОЕ другое состояние → `var(--sidebar-w-mini)` (52px). Раньше было `hidden → 0px` — это отклонение от эталона удалено.
+   - **Navigation Toggle перенесён из Sidebar.jsx в AppLayout.jsx** — в эталоне он лежит ОТДЕЛЬНО от панели (в секции контента), поэтому в React он теперь sibling компонента Sidebar внутри `.app-body`: `<div className="sidebar-open-wrap"><button className="sidebar-open-btn" aria-haspopup="dialog" aria-expanded={state!=='hidden'} aria-controls="sidebar-panel">Open</button></div>`. Поведение кнопки: hidden ⇄ open (toggle overlay на мобильных).
+   - Шапочный комментарий переписан под новую семантику состояний.
+
+2. `frontend/src/components/Sidebar.jsx`
+   - Удалён блок Navigation Toggle (переехал в AppLayout).
+   - Панель: к классам добавлен маркер `hs-overlay` (идентичность эталону); React-классы `.sidebar-open` / `.sidebar-minified` эмулируют `hs-overlay-open` / `hs-overlay-minified`, которые в оригинале навешивает JS Preline.
+   - Остальная структура без изменений (header: бренд flex-none text-xl → X size-6 lg:hidden → minify-toggle size-9 hidden lg:block с двумя panel-иконками chevron; body: nav со скроллбаром w-2 rounded-none; пункты min-h-[36px] gap-x-3.5 py-2 px-2.5 rounded-lg; текст в span-аналогах hs-overlay-minified:hidden; аккордеоны hs-accordion; бейдж ms-auto rounded-full).
+   - sr-only span в minify-toggle НЕ возвращён (удалён ранее по прямому указанию пользователя; aria-label сохранён).
+
+3. `frontend/src/styles/components.css`
+   - **`.sidebar:not(.sidebar-open) { pointer-events:none }`** и **`.sidebar:not(.sidebar-open) { --sb-width: 0px }`** убраны из общего/десктопного контекста. `pointer-events:none` оставлен только в `@media (max-width:1024px)` (для закрытого translateX-оверлея). В `@media (min-width:1025px)` состояние скрытия удалено вовсе — остаётся только `.sidebar.sidebar-minified { --sb-width: var(--sidebar-w-mini) }` (hs-overlay-minified:w-13).
+   - **Transition pointer-events** (задержка 0.3s при закрытии) перенесён внутрь `@media (max-width:1024px)`; для `min-width:1025px` transition панели — только `--sb-width` + `transform`.
+   - Комментарии блоков обновлены: явно описано соответствие классам эталона (lg:block/lg:translate-x-0/-translate-x-full/hs-overlay-open/hs-overlay-minified/[--auto-close:lg]).
+   - Без изменений оставлены: геометрия header/пунктов/бейджа, hover (белый фон + тёмный текст), активный пункт (--color-accent), мини-центрирование иконок (label/chevron display:none), мобильный overlay+backdrop (::after), «Open» фиксирована у левого верхнего края когда панель скрыта (z-55), is-ready/reduced-motion.
+
+**Причина:** пользователь трижды отвергал самодельные варианты и потребовал точную копию структуры/поведения эталонного сниппета. Отличия предыдущей версии от эталона: (а) десктопное полное скрытие панели width:0 вместо «всегда видима, minifier»; (б) кнопка Open была в component Sidebar вместо отдельного блока контента; (в) отсутствие маркера hs-overlay. Всё устранено.
+
+**Проверка:**
+- `npm run build` — успешно (366–400ms, CSS 15.34 kB, JS 334.73 kB).
+- `npx oxlint Sidebar.jsx AppLayout.jsx` — 0 warnings/errors.
+- Геометрия десктопа: open — панель 256px, контент margin-inline-start 256px; клик minify-toggle — рельс 52px, контент 52px, текст скрыт, иконки центрированы; обратный клик — возврат. Полного исчезновения панели на десктопе нет (как lg:block в эталоне).
+- Мобильные (<1024px): панель скрыта (-translate-x-full), видна кнопка «Open» (левый верхний край); клик — overlay 256px + затемнение; закрытие — X в header / Escape (auto-close).
+
+**Статус:** изменения в рабочем дереве (AppLayout.jsx, Sidebar.jsx, components.css, журнал) — добавлены в staging area (`git add`), коммит не создан.

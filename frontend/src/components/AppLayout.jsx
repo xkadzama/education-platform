@@ -4,17 +4,16 @@ import Sidebar from './Sidebar'
 
 // Каркас защищённых страниц по эталонному Preline-сниппету
 // #hs-sidebar-content-push-to-mini-sidebar (behavior: content push to mini):
-//  • сайдбар — fixed-панель слева с ТРЕМЯ состояниями:
-//      'open'  — полная ширина 256px (по умолчанию, аналог [--opened:lg]);
+//  • сайдбар — fixed-панель слева с состояниями (как hs-overlay + minifier):
+//      'open'  — полная ширина 256px (w-64, по умолчанию);
 //      'mini'  — узкий рельс 52px (hs-overlay-minified:w-13), видны иконки;
-//      'hidden'— панель полностью скрыта (-translate-x-full / width 0);
-//  • переключатель minify (круглая кнопка size-9) живёт в header панели
-//    рядом с брендом: open ⇄ mini; X в header закрывает панель на мобильных;
-//    мобильная кнопка «Open» (вне панели) открывает overlay;
-//  • контент сдвигается через margin-inline-start = фактической ширине
-//    панели (content-push: 256px ↔ 52px ↔ 0);
-//  • переходы включаются только после первого кадра (ready), чтобы страница
-//    не анимировала сама себя при загрузке.
+//                на десктопе панель скрытой НЕ бывает (lg:block) — toggle
+//                работает как minifier open ⇄ mini;
+//      'hidden'— только мобильные (<1024px): панель уезжает за край
+//                (-translate-x-full), открывает её кнопка «Open» ниже;
+//  • контент сдвигается через margin-inline-start = фактической ширине панели
+//    (content-push: 256px ↔ 52px ↔ 0 на мобильных);
+//  • переходы включаются только после первого кадра (ready).
 export default function AppLayout({ children }) {
   const [state, setState] = useState('open')   // 'open' | 'mini' | 'hidden'
   const [ready, setReady] = useState(false)
@@ -24,10 +23,11 @@ export default function AppLayout({ children }) {
     return () => cancelAnimationFrame(raf)
   }, [])
 
+  // На десктопе панель не прячется полностью (lg:block): 'hidden' трактуется
+  // как мини-рельс; реальное скрытие (translateX) происходит только <1024px.
   const widthVar =
     state === 'open' ? 'var(--sidebar-w)' :
-    state === 'mini' ? 'var(--sidebar-w-mini)' :
-    '0px'
+    'var(--sidebar-w-mini)'
 
   return (
     <div className={`app-shell sidebar-state-${state}${ready ? ' is-ready' : ''}`}
@@ -37,6 +37,22 @@ export default function AppLayout({ children }) {
           (.app-content) и сдвиг шапки (.app-header-inner) наследуют токен
           от app-shell; transition'ы синхронны с анимацией .sidebar (0.3s) */}
       <div className="app-body">
+        {/* Navigation Toggle (эталон: div.lg:hidden py-16 text-center + кнопка
+            «Open») — вне панели, видна только на мобильных когда панель скрыта */}
+        <div className="sidebar-open-wrap">
+          <button
+            type="button"
+            className="sidebar-open-btn"
+            aria-haspopup="dialog"
+            aria-expanded={state !== 'hidden'}
+            aria-controls="sidebar-panel"
+            aria-label="Переключить навигацию"
+            onClick={() => setState(state === 'hidden' ? 'open' : 'hidden')}
+          >
+            Open
+          </button>
+        </div>
+
         <Sidebar state={state} setState={setState} ready={ready} />
 
         {/* Content (в эталоне — div с sm:hs-overlay-layout-open:ms-64) */}
