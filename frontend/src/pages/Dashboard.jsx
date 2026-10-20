@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
-import AppLayout from '../components/AppLayout'
 
 // Главная (защищённая) страница: доступна только после входа по JWT.
 // Справа сверху — окошко с аватаркой, ведущее в «Мой профиль».
@@ -8,8 +7,7 @@ export default function Dashboard() {
   const { user, logout } = useAuth()
 
   return (
-    <AppLayout>
-      <div className="page">
+    <div className="page">
         <div className="page-narrow">
           <h1 className="page-title">Добро пожаловать, {user.first_name}!</h1>
           <p className="text-secondary">
@@ -32,6 +30,5 @@ export default function Dashboard() {
           </section>
         </div>
       </div>
-    </AppLayout>
-  )
+      )
 }

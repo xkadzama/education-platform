@@ -696,3 +696,29 @@ components.css, журнал) — будут добавлены в staging area 
 - Визуальная логика: в меню один пункт «Уроки»; логотип «Xkadzama» сдвинут вправо на 10px от края чёрной панели.
 
 **Статус:** изменения в рабочем дереве (Sidebar.jsx, components.css, журнал) — добавлены в staging area (`git add`), коммит не создан.
+
+---
+
+## 2026-10-21 (iter 21) — Динамическая подгрузка контента страниц: сайдбар не исчезает при переходе на «Уроки»
+
+**Задача.** При клике по пункту «Уроки» контент должен подменяться динамически, а сайдбар — никуда не исчезать/не перемонтироваться.
+
+**Диагностика.** Раньше каждая страница сама оборачивала свой контент в `<AppLayout>` (Dashboard.jsx, Profile.jsx), а уроки вообще рендерились без каркаса (`Lessons.jsx` возвращал голый `<div className="page">`). В `App.jsx` каждый маршрут был отдельным элементом → при переходе `/ → /lessons` весь AppLayout размонтировался и создавался заново: сайдбар «исчезал» (перерисовка, сброс анимации ready-класса, мелькание). Уроки же открывались вообще без шапки и сайдбара.
+
+**Изменения.**
+1. **`frontend/src/App.jsx`** — переписан на вложенную маршрутизацию react-router:
+   - маршрут `/` теперь имеет element = `<ProtectedRoute><AppLayout /></ProtectedRoute>` и дочерний `<Route element={<AppRoutes />} />`;
+   - каркас (шапка + сайдбар + content-push) монтируется ОДИН раз для всех защищённых страниц;
+   - убраны прямые импорты Dashboard/Profile/Lessons из App (переехали в AppRoutes); `/login`, `/register` — вне каркаса, как были.
+2. **`frontend/src/components/AppRoutes.jsx`** (новый файл) — `<Routes>` вложенных маршрутов каркаса: `index → Dashboard`, `profile → Profile`, `lessons → Lessons`, `* → Navigate to "/" replace`. Доступ к ним уже защищён родительским ProtectedRoute, поэтому здесь он не дублируется.
+3. **`frontend/src/components/AppLayout.jsx`**:
+   - вместо prop `children` внутрь `<main className="app-content"><div className="container app-content-inner">` вставлен `<Outlet />` (импорт из react-router-dom) — сюда роутер динамически подменяет контент страницы без перемонтирования остального дерева;
+   - сигнатура компонента: `AppLayout()` без `{ children }`.
+4. **`frontend/src/pages/Dashboard.jsx`, `frontend/src/pages/Profile.jsx`** — удалены обёртки `<AppLayout>` и их импорты (каркас даёт роутер); JSX-корень страниц — обычный контент.
+5. **`frontend/src/pages/Lessons.jsx`** — файл уже содержал корректную разметку (`.page > .page-narrow`, без собственной обёртки AppLayout), поэтому фактически не изменялся; проверено, что страница корректно рендерится внутри каркаса через `<Outlet/>`.
+
+**Поведение после изменений.** Клик по NavLink «Уроки»: URL меняется на /lessons, React Router рендерит Lessons в <Outlet/>, DOM шапки/сайдбара не трогается — состояние open/mini, анимация и позиция бургера сохраняются полностью; активный пункт подсвечивается NavLink-ом. То же для любой будущей страницы каркаса.
+
+**Проверка.** `npm run build` — успешно (✓ built in 410ms); `npx oxlint` по всем шести затронутым файлам (Lessons.jsx не менялся) — Found 0 warnings and 0 errors. Ручная проверка сценария: главная → клик «Уроки» → список уроков появляется справа от сайдбара, сайдбар остаётся на месте.
+
+**Статус.** Изменения staged (App.jsx, AppRoutes.jsx новый, AppLayout.jsx, Dashboard.jsx, Profile.jsx, Lessons.jsx, docs/changes-log.md). Коммит не создавался.
