@@ -20,7 +20,7 @@ export default function AppLayout({ children }) {
   }, [])
 
   return (
-    <div className={`app-shell${ready ? ' is-ready' : ''}`}>
+    <div className={`app-shell${ready ? ' is-ready' : ''}${open ? ' sidebar-open' : ''}`}>
       <AppHeader />
       <div className={`app-body${open ? ' app-body-open' : ''}`}>
         <Sidebar open={open} setOpen={setOpen} />
