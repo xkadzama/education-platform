@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
-import './Login.css'
+import './Auth.css'
 
 // Извлекаем текст ошибки из ответа FastAPI (detail; для 422 — первое сообщение валидатора)
 function extractError(err) {
@@ -36,42 +36,53 @@ export default function Login() {
   }
 
   return (
-    <div className="login-page">
-      <form className="login-card" onSubmit={handleSubmit}>
-        <h1>Вход</h1>
-        <p className="auth-hint">
-          Авторизация по JWT: сервер выдаёт access-токен (15 мин) и refresh-токен (7 дней).
-        </p>
+    <div className="auth-page">
+      <form className="card" onSubmit={handleSubmit}>
+        <div className="auth-card-header">
+          <p className="brand">Xkadzama<span>.</span></p>
+          <h1>Вход</h1>
+          <p className="text-secondary">
+            Авторизация по JWT: сервер выдаёт access-токен (15 мин) и refresh-токен (7 дней).
+          </p>
+        </div>
 
-        <label htmlFor="email">Email</label>
-        <input
-          id="email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="student@example.com"
-          autoComplete="username"
-          required
-        />
+        <div className="field">
+          <label htmlFor="email">Email</label>
+          <input
+            id="email"
+            className="input"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="student@example.com"
+            autoComplete="username"
+            required
+          />
+        </div>
 
-        <label htmlFor="password">Пароль</label>
-        <input
-          id="password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="••••••••"
-          autoComplete="current-password"
-          required
-        />
+        <div className="field">
+          <label htmlFor="password">Пароль</label>
+          <input
+            id="password"
+            className="input"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••"
+            autoComplete="current-password"
+            required
+          />
+        </div>
 
-        {error && <p className="login-error" role="alert">{error}</p>}
+        {error && <p className="error-banner" role="alert">{error}</p>}
 
-        <button type="submit" disabled={submitting}>
+        <button type="submit" className="btn btn-primary btn-block" disabled={submitting}>
           {submitting ? 'Входим…' : 'Войти'}
         </button>
 
-        <p className="auth-hint">
+        <hr className="divider" />
+
+        <p className="text-secondary auth-footer">
           Нет аккаунта? <Link to="/register">Зарегистрироваться</Link>
         </p>
       </form>

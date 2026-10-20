@@ -1,0 +1,37 @@
+/* Специфичные для страниц авторизации мелочи (остальное — в components.css) */
+
+.auth-card-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.auth-footer {
+  text-align: center;
+}
+
+.user-info {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.user-info li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  font-size: var(--text-body);
+  color: var(--color-secondary-text);
+  padding: var(--space-xs) 0;
+  border-bottom: var(--border-input);
+}
+
+.user-info li:last-child { border-bottom: none; }
+
+.user-info strong {
+  color: var(--color-primary);
+  font-weight: 600;
+}
