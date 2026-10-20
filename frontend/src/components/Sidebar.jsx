@@ -1,25 +1,23 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
 
-// Сайдбар слева: навигация по приложению.
+// Сайдбар по референс-макету (dribbble 45744381):
+//  • узкая декоративная колонка-«рельс» слева (у нас — чёрная, наша палитра);
+//  • КРУГЛАЯ белая кнопка-бургер живёт на рельсе и наполовину выступает за
+//    его правый край, «прилипая» к контентной карточке;
+//  • контентная карточка = единое целое с сайдбаром: навигация идёт
+//    вертикальным столбцом ВНУТРИ карточки слева, справа — основной контент;
+//  • бургер схлопывает/раздвигает столбец навигации ПО ШИРИНЕ (208px → 0),
+//    поэтому контент плавно «выезжает» влево — горизонтальная анимация.
+// По умолчанию сайдбар открыт. Цвета макета не копируем — своя палитра.
+
 // Пока один пункт — «Уроки». Новые пункты добавляем в массив items.
 const items = [
   { to: '/lessons', label: 'Уроки', icon: '📘' },
 ]
 
-export default function Sidebar() {
-  // Открыт по умолчанию (по требованию).
-  const [open, setOpen] = useState(true)
-  // Флаг «готовности»: переходы включаем только после первого кадра,
-  // чтобы при загрузке страницы сайдбар не «выезжал» без действия пользователя.
-  const [ready, setReady] = useState(false)
-
-  useEffect(() => {
-    const raf = requestAnimationFrame(() => setReady(true))
-    return () => cancelAnimationFrame(raf)
-  }, [])
-
-  // Escape скрывает панель — быстрый способ закрыть меню.
+export default function Sidebar({ open, setOpen, ready }) {
+  // Escape скрывает навигацию — быстрый способ закрыть меню.
   useEffect(() => {
     if (!open) return undefined
     const onKey = (e) => {
@@ -27,14 +25,16 @@ export default function Sidebar() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [open])
+  }, [open, setOpen])
 
   return (
-    <aside className={`sidebar${open ? ' open' : ''}${ready ? ' is-ready' : ''}`}>
-      {/* Единый блок: бургер-шапка + панель. Бургер всегда виден и живёт
-          внутри блока на чёрном фоне; панель выезжает из-под него слева
-          направо (translateX), а не разворачивается по высоте. */}
-      <div className="sidebar-block">
+    <div className={`sidebar-shell${open ? ' open' : ''}${ready ? ' is-ready' : ''}`}>
+      {/* Единая белая карточка-подложка: объединяет рельс, навигацию и
+          контент в один визуальный блок (одна рамка, один радиус). */}
+      <div className="sidebar-card" aria-hidden="true" />
+
+      {/* Рельс + выступающий круглый бургер */}
+      <div className="sidebar-rail">
         <button
           type="button"
           className="sidebar-toggle"
@@ -46,23 +46,25 @@ export default function Sidebar() {
         >
           <span className="sidebar-toggle-icon" aria-hidden="true">☰</span>
         </button>
-
-        <div className="sidebar-panel" id="sidebar-nav">
-          <nav className="sidebar-nav" aria-label="Основная навигация">
-            <ul className="sidebar-list">
-              {items.map((item) => (
-                <li key={item.to}>
-                  {/* NavLink сам проставляет .active при совпадении маршрута */}
-                  <NavLink to={item.to} className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}>
-                    <span className="sidebar-icon" aria-hidden="true">{item.icon}</span>
-                    <span className="sidebar-label">{item.label}</span>
-                  </NavLink>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        </div>
       </div>
-    </aside>
+
+      {/* Столбец навигации — вторая колонка грида поверх карточки-подложки */}
+      <nav className="sidebar-nav" id="sidebar-nav" aria-label="Основная навигация">
+        <ul className="sidebar-list">
+          {items.map((item) => (
+            <li key={item.to}>
+              {/* NavLink сам проставляет .active при совпадении маршрута */}
+              <NavLink
+                to={item.to}
+                className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}
+              >
+                <span className="sidebar-icon" aria-hidden="true">{item.icon}</span>
+                <span className="sidebar-label">{item.label}</span>
+              </NavLink>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    </div>
   )
 }
