@@ -388,3 +388,160 @@ code {
 .back-link:hover {
   color: var(--color-primary);
 }
+
+/* ---------- App shell: сайдбар слева + контент (§3: шаг 8px, много воздуха) ---------- */
+
+.app-body {
+  display: grid;
+  grid-template-columns: 208px minmax(0, 1fr);   /* 26 * 8px — ширина сайдбара кратна сетке */
+  gap: var(--space-md);                          /* 32px между сайдбаром и контентом */
+  align-items: start;
+}
+
+.sidebar {
+  position: sticky;
+  top: calc(64px + var(--space-sm));             /* под шапкой (64px) + 16px воздуха */
+  padding-top: var(--space-md);                  /* 32px от верны области контента */
+}
+
+.sidebar-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);                          /* 8px между пунктами меню */
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);                          /* 8px до иконки */
+  padding: 12px var(--space-sm);                 /* 16px горизонтальные отступы */
+  border-radius: var(--radius);                  /* единый радиус 8px */
+  font-size: var(--text-body);
+  font-weight: 500;
+  color: var(--color-secondary-text);
+  text-decoration: none;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.sidebar-link:hover {
+  color: var(--color-primary);
+  background: var(--color-border);               /* лёгкая подсветка без рамки (flat) */
+}
+
+/* Активный пункт: чёрный текст + оранжевая иконка — «активные элементы» из §1 */
+.sidebar-link.active {
+  color: var(--color-primary);
+  background: var(--color-border);
+  font-weight: 600;
+}
+.sidebar-link.active .sidebar-icon { color: var(--color-accent); }
+
+.sidebar-icon {
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.app-content {
+  min-width: 0;
+}
+
+/* ---------- Страница «Уроки» ---------- */
+
+.lessons-page .page-title {
+  font-size: var(--text-h2);                     /* H2 для заголовков секций */
+}
+
+.lessons-section {
+  margin-top: var(--space-md);                   /* 32px между блоками внутри страницы */
+}
+
+.lessons-heading {
+  font-family: var(--font-heading);
+  font-weight: var(--weight-bold);
+  font-size: 18px;
+  color: var(--color-secondary-text);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: var(--space-sm);                /* 16px до списка */
+}
+
+.lesson-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: var(--border-card);                    /* карточка-список: граница вместо тени */
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.lesson-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);                          /* 16px между маркером и текстом */
+  padding: var(--space-sm) var(--card-padding);  /* 16px/24px — как padding карточки */
+  border-bottom: var(--border-input);
+  background: var(--color-background);
+  transition: background-color 0.15s ease;
+}
+.lesson-item:last-child { border-bottom: none; }
+.lesson-item:hover { background: var(--color-border); }
+
+.lesson-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lesson-title {
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.lesson-meta {
+  font-size: var(--text-caption);                /* 14px — мета-информация */
+  color: var(--color-secondary-text);
+}
+
+/* Пройденные: чёрная галочка; предстоящие: серый кружок */
+.lesson-check {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: var(--color-background);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.lesson-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.lesson-completed .lesson-title {
+  color: var(--color-secondary-text);            /* прочитанное визуально «тише» */
+}
+
+/* Мобильные: сайдбар схлопывается в горизонтальное меню */
+@media (max-width: 768px) {
+  .app-body {
+    grid-template-columns: 1fr;
+  }
+  .sidebar {
+    position: static;
+    padding-top: var(--space-sm);
+  }
+  .sidebar-list {
+    flex-direction: row;
+  }
+}
