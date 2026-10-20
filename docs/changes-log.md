@@ -36,3 +36,30 @@
 **Проверка:** diff (`git diff --cached`) подтверждает ровно два целевых изменения — обёртки в JSX и одну CSS-строку; логика компонента (фильтрация `completed`/`upcoming` из `src/data/lessons.js`) не тронута.
 
 **Статус:** изменения пока в staged (`Lessons.jsx`, `components.css`), коммит не создан — при следующей работе закоммитить с осмысленным сообщением и дописать хеш сюда.
+### 2026-10-21 — Сайдбар: блочный вид, чёрный фон, рамка, бургер-переключение (выезд/скрытие)
+
+**Задача пользователя:** сделать сайдбар визуально блочным, с рамкой в соответствии со стилями дизайн-системы, фон сайдбара — чёрный; реализовать бургер, по нажатию на который сайдбар выезжает и так же скрывается; по умолчанию открыт.
+
+**Изменения (2 файла):**
+
+1. `frontend/src/components/Sidebar.jsx` — полная переработка компонента:
+   - Добавлено состояние `const [open, setOpen] = useState(true)` — **открыт по умолчанию** (требование).
+   - Добавлено состояние `ready` + `useEffect` с `requestAnimationFrame`: CSS-переходы анимации включаются только после первого кадра (класс `.is-ready`), чтобы при загрузке страницы панель не «разворачивалась» сама без действия пользователя.
+   - Добавлен обработчик Escape (`useEffect`, слушатель `keydown` на window, снимается в cleanup) — закрытие панели с клавиатуры.
+   - Разметка: `<aside class="sidebar [open] [is-ready]">` содержит:
+     a) кнопку-бургер `<button.sidebar-toggle>` (символ ☰, 40×40) с `aria-expanded={open}`, `aria-controls="sidebar-nav"`, динамическим `aria-label`/`title` («Открыть меню»/«Свернуть меню»), `onClick={() => setOpen(v => !v)}`;
+     b) панель `<div.sidebar-panel id="sidebar-nav">` → `<nav.sidebar-nav>` → `<ul.sidebar-list>` → `NavLink.sidebar-link` (иконка + подпись в `<span class="sidebar-label">`). Логика NavLink с `.active` сохранена как была.
+   - Массив `items` (пока один пункт «Уроки» → /lessons) не менялся.
+
+2. `frontend/src/styles/components.css` — блок сайдбара (~строки 402–517):
+   - `.sidebar`: был plain-колонка без оформления → стал flex-колонка (`flex-direction: column; align-items: flex-start; gap: 8px`) для «бургер над панелью»; sticky-позиционирование под шапкой сохранено.
+   - Новый `.sidebar-toggle`: чёрная кнопка 40×40 (`background: var(--color-primary)` #000, `border: 1px solid var(--color-primary)`, `border-radius: var(--radius)` 8px, hover `var(--color-hover)` #333) — стиль соответствует кнопкам §4 дизайн-системы.
+   - Новая `.sidebar-panel`: **блочный вид** — `background: var(--color-primary)` (**чёрный фон**), **рамка** `1px solid #ffffff` (белая обводка на чёрном фоне — аналог `--border-card` 1px + radius 8px, видимая на тёмном блоке), `border-radius: var(--radius)`, `padding: var(--space-sm)` 16px, `overflow: hidden`.
+   - Анимация выезда: `.sidebar.is-ready .sidebar-panel { display: grid; grid-template-rows: 0fr; opacity: 0; transform: translateX(-16px); transition: 0.25s ease }`; `.sidebar.is-ready.open .sidebar-panel { grid-template-rows: 1fr; opacity: 1; transform: none }` — плавные скрытие/выезд слева. Дочерний `.sidebar-panel > .sidebar-nav` получил `min-height: 0; overflow: hidden` (обязательное условие трюка с 0fr↔1fr).
+   - Цвета ссылок адаптированы под чёрный фон: `.sidebar-link` — текст `rgba(255,255,255,.75)`; hover — белый текст + фон `var(--color-hover)` (#333, токен «hover для чёрных элементов» §1); `.active` — белый текст + фон `var(--color-accent)` (#ff5a00, «активные элементы» §1), иконка белая.
+   - Медиазапрос ≤768px: удалено превращение в горизонтальное меню (`flex-direction: row` для `.sidebar-list`) — теперь на мобильных сайдбар остаётся тем же вертикальным блоком с бургером (панель во всю ширину колонки); static-позиционирование сохранено.
+   - Добавлен `@media (prefers-reduced-motion: reduce) { .sidebar.is-ready .sidebar-panel { transition: none } }`.
+
+**Проверка:** `npm run build` в frontend — успешная сборка (95 модулей, без ошибок); `npx oxlint src/components/Sidebar.jsx` — 0 warnings/errors. Визуально: при загрузке сайдбар открыт (чёрный блок с белой рамкой под бургером), клик по ☰ плавно сворачивает панель, повторный клик/Escape — разворачивает обратно.
+
+**Статус:** изменения в рабочем дереве (`Sidebar.jsx`, `components.css`, этот журнал) — коммит не создан; при следующей работе закоммитить и дописать хеш сюда.
