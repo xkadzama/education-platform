@@ -1,0 +1,41 @@
+/* ============================================================
+   Xkadzama Education Platform — Design Tokens
+   Источник истины: docs/design-system.md (reference: getartcraft.com)
+   ============================================================ */
+
+:root {
+  /* 1. Color Palette */
+  --color-primary: #000000;        /* заголовки, основной текст, границы кнопок */
+  --color-background: #ffffff;     /* фон страниц и карточек */
+  --color-accent: #ff5a00;         /* CTA, активные элементы, иконки */
+  --color-secondary-text: #666666; /* описания, второстепенная информация */
+  --color-border: #e5e5e5;         /* границы инпутов, разделители */
+  --color-hover: #333333;          /* hover для чёрных элементов */
+  --color-error: #d93025;          /* сообщения об ошибках */
+
+  /* 2. Typography */
+  --font-heading: 'Manrope', 'Inter', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --text-h1: 48px;                 /* главные баннеры (моб.: clamp) */
+  --text-h2: 32px;                 /* заголовки секций */
+  --text-h3: 24px;                 /* заголовки карточек */
+  --text-body: 16px;
+  --text-caption: 14px;
+  --line-height-body: 1.5;
+  --weight-bold: 700;
+  --weight-regular: 400;
+
+  /* 3. Spacing & Layout (шаг 8px) */
+  --space-xs: 8px;
+  --space-sm: 16px;
+  --space-md: 32px;
+  --space-lg: 64px;
+  --space-xl: 96px;
+  --container-max: 1200px;
+  --card-padding: 24px;            /* = 3 * base unit */
+
+  /* 4. Components */
+  --radius: 8px;                   /* единое скругление: кнопки, инпуты, карточки */
+  --border-input: 1px solid var(--color-border);
+  --border-card: 1px solid var(--color-border);
+}

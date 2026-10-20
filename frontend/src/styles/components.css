@@ -1,0 +1,204 @@
+/* ============================================================
+   Глобальные стили + переиспользуемые компоненты
+   Правила: docs/design-system.md §4 (Buttons / Cards / Inputs)
+   Минимализм, flat design, много воздуха — §5
+   ============================================================ */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100vh;
+}
+
+body {
+  font-family: var(--font-body);
+  font-size: var(--text-body);
+  line-height: var(--line-height-body);
+  color: var(--color-primary);
+  background: var(--color-background);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--font-heading);
+  font-weight: var(--weight-bold);
+  color: var(--color-primary);
+  margin: 0;
+}
+
+h1 { font-size: clamp(32px, 5vw, var(--text-h1)); letter-spacing: -0.5px; }
+h2 { font-size: var(--text-h2); }
+h3 { font-size: var(--text-h3); }
+
+p { margin: 0; }
+
+a {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+a:hover { color: var(--color-accent); }
+
+code {
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: var(--text-caption);
+  background: var(--color-background);
+  border: var(--border-card);
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+/* ---------- Layout helpers ---------- */
+
+.auth-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: var(--space-md);           /* воздух вокруг формы */
+}
+
+.container {
+  width: 100%;
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 0 var(--space-md);
+}
+
+/* ---------- Buttons (§4) ---------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  font-family: var(--font-body);
+  font-size: var(--text-body);
+  font-weight: 600;
+  line-height: 1;
+  padding: 14px var(--space-sm);      /* внутренние отступы кратны 8px */
+  border-radius: var(--radius);
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease,
+              border-color 0.15s ease;
+  text-decoration: none;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+/* Primary: чёрный фон, белый текст, hover → #333 */
+.btn-primary {
+  background: var(--color-primary);
+  color: var(--color-background);
+}
+.btn-primary:hover:not(:disabled) { background: var(--color-hover); }
+
+/* Secondary: прозрачный фон, чёрная обводка 1px */
+.btn-secondary {
+  background: transparent;
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary);
+}
+.btn-secondary:hover:not(:disabled) {
+  background: var(--color-primary);
+  color: var(--color-background);
+}
+
+/* Accent: оранжевый — только для самых важных действий */
+.btn-accent {
+  background: var(--color-accent);
+  color: var(--color-background);
+}
+.btn-accent:hover:not(:disabled) { filter: brightness(0.9); }
+
+.btn-block { width: 100%; }
+
+/* ---------- Card (§4): white bg, flat, тонкая граница, padding 24px ---------- */
+
+.card {
+  width: 100%;
+  max-width: 440px;
+  background: var(--color-background);
+  border: var(--border-card);
+  border-radius: var(--radius);
+  padding: var(--card-padding);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);                /* 16px между элементами формы */
+}
+
+/* ---------- Inputs (§4) ---------- */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.field label {
+  font-size: var(--text-caption);
+  color: var(--color-secondary-text);
+  font-weight: 500;
+}
+
+.input {
+  font-family: var(--font-body);
+  font-size: var(--text-body);
+  color: var(--color-primary);
+  background: var(--color-background);
+  border: var(--border-input);
+  border-radius: var(--radius);
+  padding: 12px var(--space-sm);
+  transition: border-color 0.15s ease;
+}
+
+.input::placeholder { color: var(--color-secondary-text); opacity: 0.7; }
+
+/* Focus: граница становится чёрной */
+.input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+/* ---------- Misc ---------- */
+
+.text-secondary {
+  font-size: var(--text-caption);
+  color: var(--color-secondary-text);
+}
+
+.error-banner {
+  font-size: var(--text-caption);
+  color: var(--color-error);
+  border: 1px solid var(--color-error);
+  border-radius: var(--radius);
+  padding: 12px var(--space-sm);
+}
+
+.brand {
+  font-family: var(--font-heading);
+  font-weight: var(--weight-bold);
+  font-size: var(--text-h3);
+  letter-spacing: -0.3px;
+}
+
+.brand span { color: var(--color-accent); }
+
+.divider {
+  height: 1px;
+  background: var(--color-border);
+  border: none;
+  margin: 0;
+}
