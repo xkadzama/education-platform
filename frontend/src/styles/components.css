@@ -414,23 +414,20 @@ code {
 
 /* ---------- App shell: сайдбар (fixed-панель) + контент (content-push) ----------
    Адаптация эталонного Preline-сниппета (#hs-sidebar-content-push):
-    • fixed-панель 256px (w-64) слева, border-e, bg-sidebar;
-    • панель заполняет ВВЕРХ до самого края страницы (top: 0), поверх шапки;
-    • desktop: -translate-x-full ↔ translate-x-0 ([--opened:lg] → открыто);
-    • контент сдвигается margin-inline-start (sm:ms-64), transition-all 300ms;
-    • бургер — круглая кнопка size-8 внутри панели (absolute у правого края);
+    • fixed-панель слева, border-e, bg-sidebar; заполняет ВВЕРХ до края страницы;
+    • сворачивание — анимация ШИРИНЫ 256px ↔ 56px: при закрытии остаётся узкий
+      чёрный «рельс», в котором видны бургер и иконки/маркеры пунктов меню;
+    • контент сдвигается margin-inline-start = фактической ширине панели;
+    • бургер — круглая кнопка size-8 внутри header панели, на одном уровне
+      с брендом (бургер слева, бренд справа);
     • на мобильных панель — overlay с затемнением (--overlay-backdrop).
    Цвета сниппета не копируем — наша палитра tokens.css (§1). */
 
 :root {
-  --sidebar-w: 256px;                          /* w-64 из эталона */
+  --sidebar-w: 256px;                          /* w-64 из эталона (открытая панель) */
+  --sidebar-w-rail: 56px;                      /* свёрнутая панель — видимый «рельс»:
+       в полоску 56px попадают бургер (32px + отступы) и иконки пунктов меню */
   --header-h: 64px;                            /* высота AppHeader */
-  --burger-x: 216px;                           /* левый край бургера при ОТКРЫТОЙ
-       панели: 256(ширина) - 32(кнопка) - 8(p-4) = 216 — у правого края меню */
-  --burger-x-collapsed: 8px;                   /* левый край бургера при ЗАКРЫТОЙ
-       панели: кнопка position:fixed, left считается от левого края ЭКРАНА —
-       ПРИЖАТА к левому краю сайта с отступом 8px, видна и кликабельна для
-       повторного открытия */
 }
 
 .app-body {
@@ -438,31 +435,38 @@ code {
   min-height: calc(100vh - var(--header-h));
 }
 
-/* --- Панель сайдбара: fixed слева, заполняет вверх до самого края страницы.
-       При закрытии панель уезжает на -93.75% (translateX по ЛЕВОМУ краю панели,
-       а не по видимой области с overflow): width 256px → сдвиг ровно на 240px.
-       В видной полоске 16px остаётся ТОЛЬКО бургер (32px) — клик по нему
-       снова открывает меню. Бургер позиционируется абсолютно; в открытом
-       состоянии left считается от левого края ЭКРАНА и не зависит от сдвига
-       панели, поэтому анимация «left + transform» даёт плавный выезд без
-       съезжания верстки. --- */
+/* --- Панель сайдбара: fixed слева, заполняет ВВЕРХ до самого края страницы.
+       Сворачивание — АНИМАЦИЯ ШИРИНЫ 256px ↔ 56px (панель всегда прижата к
+       левому краю, ничего не «уезжает» за экран):
+       • открытая: полная ширина, бренд + полный текст пунктов;
+       • свёрнутая: торчит узкий чёрный «рельс» 56px — в нём видны бургер и
+         ИКОНКИ/маркеры пунктов меню (текст уезжает за правую границу);
+       • контент сдвигается margin-inline-start = фактической ширине панели
+         (значение --sb-live выставляет AppLayout).
+       Ширина анимируется через @property --sb-width — все наследники
+       (.sidebar-inner и др.) получают промежуточные значения автоматически. --- */
+@property --sb-width {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 256px;
+}
+
 .sidebar {
   position: fixed;
   top: 0;                                      /* панель — от САМОГО верха страницы */
   inset-inline-start: 0;
   bottom: 0;
   z-index: 20;                                 /* поверх sticky-шапки (z-10), т.к. заполняет вверх */
-  width: var(--sidebar-w);
+  --sb-width: var(--sidebar-w);                /* базовое состояние = открыто */
+  width: var(--sb-width);                      /* анимируемый токен вместо фикс. 256px */
   background: var(--color-primary);            /* bg-sidebar → наш чёрный */
   border-inline-end: 1px solid rgba(255, 255, 255, 0.15); /* border-e */
   color: #ffffff;
-  transform: none;                             /* базовое состояние = открыто */
-  transition: transform 0.3s ease;
+  overflow: hidden;                            /* контент режется по ширине панели */
 }
 .sidebar:not(.sidebar-open) {
-  /* Уезд на 240px (= -93.75% от 256px): панель уходит за левый край, но
-     fixed-бургер в уезд не попадает — остаётся видимой у левого края сайта. */
-  transform: translateX(-93.75%);
+  /* Свёрнутое состояние: остаётся видимый рельс 56px с бургером и иконками */
+  --sb-width: var(--sidebar-w-rail);
 }
 
 .sidebar-inner {
@@ -471,14 +475,20 @@ code {
   flex-direction: column;
   height: 100%;
   max-height: 100%;
-  /* Контент панели (brand, навигация) обрезается по её краям — при уезде
-     на -93.75% за экраном скрывается и левая часть контента. Бургер ЖИВЁТ
-     ВНЕ этого контейнера (прямой ребёнок .sidebar), поэтому overflow его
-     не режет и кнопка остаётся видимой у левого края сайта. */
-  overflow: hidden;
+  /* min-width: 256px — «ящик», который НЕ сжимается вместе с панелью: когда
+     .sidebar схлопывается до рельса 56px, inner остаётся шириной 256px, а
+     overflow панели обрезает его СПРАВА. Левый край (бургер, иконки пунктов)
+     при этом остаётся на месте и виден в полоске 56px. */
+  min-width: var(--sidebar-w);
 }
 
-/* Header панели: бренд (бургер больше не в потоке — см. .sidebar-burger) */
+/* Header панели: БУРГЕР + бренд на ОДНОМ уровне (flex-строка шириной 256px).
+   justify-content: space-between: бургер прижат к ЛЕВОМУ краю строки, бренд —
+   к ПРАВОМУ (у правого края открытой панели). При сворачивании строка НЕ
+   сжимается (min-width выше), поэтому:
+   • бургер стоит там же — у левого края сайта ВНУТРИ видимого рельса и никуда
+     не исчезает (клик снова открывает меню);
+   • бренд уходит за правую границу рельса и дополнительно гаснет (opacity:0). */
 .sidebar-header {
   padding: var(--space-sm);                    /* p-4 */
   display: flex;
@@ -488,12 +498,17 @@ code {
 }
 
 .sidebar-brand {
-  flex: none;
   font-family: var(--font-heading);
   font-weight: var(--weight-bold);
   font-size: 20px;                             /* text-xl */
   color: #ffffff;                              /* text-layer-foreground */
   text-decoration: none;
+  white-space: nowrap;
+  transition: opacity 0.3s ease;               /* плавно гаснет при сворачивании */
+}
+.sidebar:not(.sidebar-open) .sidebar-brand {
+  opacity: 0;                                  /* бренду места в рельсе нет */
+  pointer-events: none;
 }
 .sidebar-brand:hover { color: var(--color-accent); }
 .sidebar-brand:focus-visible { outline: none; opacity: 0.8; }
@@ -501,7 +516,9 @@ code {
 /* Body: навигация со скроллом и тонким скроллбаром (как в эталоне) */
 .sidebar-body {
   height: 100%;
-  overflow-y: auto;
+  overflow-y: auto;                            /* вертикальный скролл меню */
+  overflow-x: hidden;                          /* горизонталь режем: при
+       сворачивании текст пунктов уходит за правую границу без х-скролла */
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
 }
@@ -529,12 +546,17 @@ code {
 }
 
 /* Пункт/кнопка аккордеона: flex items-center gap-14px py-8px px-10px
-   text-sm rounded-lg — геометрия 1:1 из эталона. */
+   text-sm rounded-lg — геометрия 1:1 из эталона.
+   Механика «иконки видны в рельсе»: вся панель при сворачивании сжимается до
+   56px, но .sidebar-inner сохраняет min-width 256px — overflow панели режет
+   её СПРАВА. Левый край каждого пункта (бургер в header, иконка/маркер в
+   списке) стоит на прежнем месте и остаётся в видимой полоске 56px; текст,
+   chevron и бейдж уезжают за правую границу. Дополнительно содержимое пункта
+   завёрнуто в .sidebar-item-content c white-space:nowrap — при обрезке текст
+   не переносится. */
 .sidebar-link,
 .sidebar-toggle-btn {
-  display: flex;
-  align-items: center;
-  gap: 14px;                                   /* gap-x-3.5 */
+  display: block;                              /* контейнер = строка пункта */
   width: 100%;
   padding: 8px 10px;                           /* py-2 px-2.5 */
   border: none;
@@ -548,8 +570,12 @@ code {
   cursor: pointer;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
-
-/* Hover по требованию: БЕЛЫЙ фон + тёмный текст (по чёрному фону панели) */
+.sidebar-item-content {
+  display: flex;
+  align-items: center;
+  gap: 14px;                                   /* gap-x-3.5 */
+  white-space: nowrap;                         /* текст не переносится при обрезке */
+}
 .sidebar-link:hover,
 .sidebar-toggle-btn:hover {
   background: #ffffff;
@@ -592,7 +618,9 @@ code {
 /* Содержимое аккордеона: скрыто, когда секция не активна (hidden в эталоне) */
 .hs-accordion-content.hidden { display: none; }
 
-/* Вложенные списки: ps-7 (28px отступ) + space-y-1 */
+/* Вложенные списки: ps-7 (28px отступ) + space-y-1. В свёрнутом состоянии
+   отступ обнуляем — вложенные пункты выравниваются к левому краю рельса,
+   их иконки тоже попадают в видимую полосу. */
 .sidebar-sublist {
   list-style: none;
   margin: 0;
@@ -600,7 +628,9 @@ code {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  transition: padding 0.3s ease;
 }
+.sidebar:not(.sidebar-open) .sidebar-sublist { padding-left: 0; }
 .sidebar-sublist .sidebar-sublist { padding-left: 8px; }  /* вложенность ps-2 */
 
 /* Бейдж «Новое»: ms-auto пилюля (inline-flex text-xs rounded-full) */
@@ -616,53 +646,44 @@ code {
   border-radius: 999px;                        /* rounded-full */
 }
 
-/* --- Content: сдвиг при открытом сайдбаре (ms-64) + плавный push.
+/* --- Content: сдвиг = фактической ширине панели (content-push) + плавный push.
        Топбар с отдельным бургером убран — переключатель живёт в header
-       самой панели. --- */
+       самой панели. Значение --sb-live выставляет AppLayout на .app-body
+       (256px ↔ 56px); transition маргинала синхронен с width-анимацией. --- */
 .app-content {
   min-height: calc(100vh - var(--header-h));   /* min-h-160 */
   background: var(--color-background);         /* bg-layer */
+  margin-inline-start: var(--sb-live, var(--sidebar-w)); /* открыто 256 / свёрнуто 56 */
   transition: margin-inline-start 0.3s ease;   /* transition-all duration-300 */
-}
-.app-body-open .app-content {
-  margin-inline-start: var(--sidebar-w);       /* sm:hs-overlay-layout-open:ms-64 */
 }
 
 .app-content-inner { padding-top: var(--space-md); }  /* воздух сверху страницы */
 
-/* Бургер-переключатель (Navigation Toggle): круглая кнопка size-8 — прямой
-   ребёнок .sidebar, position:FIXED. Механика:
-   • Открытая панель: left = var(--burger-x) = 216px — кнопка стоит НА ОДНОМ
-     УРОВНЕ с брендом «Xkadzama» (top:16px = центр строки шапки панели 64px)
-     и ПРИЖАТА к ПРАВОМУ краю чёрного фона меню.
-   • Закрытая панель: панель уезжает на translateX(-93.75%), но fixed-кнопка
-     в уезд НЕ попадает (fixed не наследует transform родителя) — left сразу
-     пересчитывается на --burger-x-collapsed (8px), и кнопка встаёт у ЛЕВОГО
-     края экрана: не исчезает, клик по ней снова открывает меню.
-   Переход left синхронизирован с transform панели (0.3s) — кнопка плавно
-   «едет» из правого края меню к левому краю экрана без съезжания вёрстки. */
+/* Бургер-переключатель (Navigation Toggle): круглая кнопка size-8 ВНУТРИ
+   header панели (первый ребёнок flex-строки .sidebar-header) — стоит на
+   ОДНОМ УРОВНЕ с брендом «Xkadzama»: бургер прижат к ЛЕВОМУ краю строки,
+   бренд — к ПРАВОМУ (justify-content: space-between). Механика сворачивания:
+   • панель анимирует ШИРИНУ 256px ↔ 56px (не уезжает за экран);
+   • flex-строка header НЕ сжимается (min-width inner = 256px), поэтому
+     бургер остаётся на своём месте — внутри видимого чёрного рельса,
+     никуда не исчезает; клик снова открывает меню;
+   • бренд уходит за правую границу рельса и гаснет. */
 .sidebar-burger {
-  position: fixed;                           /* вне потока и вне clip-области
-       .sidebar-inner; не участвует в уезде панели — остаётся видимой всегда */
-  top: 16px;                                 /* один уровень с заголовком панели:
-       (64 - 32) / 2 = 16 — по центру строки brand */
-  left: var(--burger-x);                     /* открытая панель: 256 - 32(size-8) - 8(p-4)
-       = 216px от левого края ЭКРАНА — у правого края меню */
+  position: relative;                          /* в потоке header: едет вместе с панелью */
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   width: 32px;                                 /* size-8 */
   height: 32px;
+  flex: none;                                  /* не сжимается */
   padding: 0;
   background: transparent;
   border: none;
   border-radius: 50%;                          /* rounded-full */
   color: rgba(255, 255, 255, 0.85);            /* текст пункта на чёрном */
   cursor: pointer;
-  z-index: 30;                                 /* выше шапки (10) и панели (20):
-       поверх sticky-шапки и частичного уезда панели кнопка обязана оставаться
-       кликабельной */
+  z-index: 30;                                 /* выше шапки (10) и панели (20) */
 }
 /* Открытая панель (чёрный фон) → бургер БЕЛЫЙ, чтобы не сливался с меню */
 .sidebar-open .sidebar-burger {
@@ -670,19 +691,12 @@ code {
   background: transparent;
   box-shadow: none;
 }
+/* Свёрнутая панель: кнопка лежит внутри чёрного рельса 56px — остаётся
+   БЕЛОЙ (белая обводка для читаемого контура), кликабельна для открытия. */
 .sidebar:not(.sidebar-open) .sidebar-burger {
-  /* fixed-позиция кнопки НЕ наследует translateX уехавшей панели — left
-     всегда считается от левого края ЭКРАНА. Закрытая панель: кнопка встаёт
-     у ЛЕВОГО края сайта (отступ --burger-x-collapsed = 8px), не исчезает и
-     остаётся единственной видимой частью сайдбара — клик по ней снова
-     открывает меню. */
-  left: var(--burger-x-collapsed);
-  /* Свёрнутая панель = кнопка лежит на светлом фоне страницы → делаем её
-     ЧЁРНОЙ (иконка наследует цвет через currentColor), с тонкой тёмной
-     обводкой для читаемости контура кнопки. */
-  color: #000000;
+  color: #ffffff;
   background: transparent;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.45);
 }
 .sidebar-burger-icon { width: 16px; height: 16px; flex: none; stroke: currentColor; }
 /* Две иконки как в эталоне (panel-left-close / panel-left-open): показываем
@@ -691,26 +705,17 @@ code {
 .sidebar-burger-collapse { display: block; }   /* «свернуть» — когда открыта */
 .sidebar:not(.sidebar-open) .sidebar-burger-expand  { display: block; }
 .sidebar:not(.sidebar-open) .sidebar-burger-collapse { display: none; }
-/* Hover/focus адаптированы под текущий фон: на открытой (чёрной) панели —
-   белая плашка + чёрный символ; на свёрнутой (светлый фон страницы) —
-   инверсия: чёрная плашка + белый символ. */
-.sidebar-open .sidebar-burger:hover {
+/* Hover/focus: белая плашка + чёрный символ (работает и на открытой панели,
+   и внутри чёрного рельса — фон плашки всегда контрастен). */
+.sidebar-burger:hover {
   background: #ffffff;
   color: var(--color-primary);
-}
-.sidebar:not(.sidebar-open) .sidebar-burger:hover {
-  background: #000000;
-  color: #ffffff;
   box-shadow: none;
 }
 .sidebar-burger:focus-visible {
   outline: none;
   background: #dddddd;
   color: var(--color-primary);
-}
-.sidebar:not(.sidebar-open) .sidebar-burger:focus-visible {
-  background: #000000;
-  color: #ffffff;
   box-shadow: none;
 }
 
@@ -734,34 +739,26 @@ code {
 }
 
 /* Мобильные (<1024px, аналог lg-брейкпоинта эталона): панель — overlay поверх
-   контента (полностью уезжает за край, контент не сдвигается);
-   --is-layout-affect только на десктопе. Бургер остаётся видным и в закрытом
-   состоянии (прижат к левому краю экрана) — им и открываем/закрываем панель;
-   также панель закрывается по Escape. */
+   контента; при закрытии сжимается в рельс 56px (не исчезает полностью) —
+   бургер и иконки остаются видны, контент не сдвигается.
+   Также панель закрывается по Escape. */
 @media (max-width: 1024px) {
-  .app-body-open .app-content { margin-inline-start: 0; }
-  /* На мобильных панель — overlay: при закрытии уезжает ПОЛНОСТЬЮ (-100%),
-     чтобы за краем не осталось даже полоски. Бургер — position:fixed и в
-     уезд не попадает, поэтому остаётся видимым и кликабельным у левого
-     края экрана — им и открываем/закрываем панель. */
-  .sidebar:not(.sidebar-open) { transform: translateX(-100%); }
+  .app-content { margin-inline-start: 0 !important; }
 }
 
 /* Переходы включаем только после первого кадра (.is-ready на app-shell),
-   чтобы при загрузке панель не «выезжала» сама без пользователя */
-.app-shell.is-ready .sidebar,
-.app-shell.is-ready .app-content {
-  transition: transform 0.3s ease, margin-inline-start 0.3s ease;
-}
-/* fixed-бургер: анимация позиции синхронно с выездом панели + hover-цвета;
-   включается тоже только после первого кадра */
-.app-shell.is-ready .sidebar-burger {
-  transition: left 0.3s ease,
-              background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+   чтобы при загрузке панель не «выезжала» сама без пользователя.
+   Анимация ширины идёт через @property --sb-width + width: var(--sb-width);
+   transition ставится НА САМ ТОКЕН (наследуется всеми детьми) — единый
+   синхронный 0.3s; маргинал контента анимирован тем же таймингом. */
+.app-shell.is-ready .sidebar {
+  transition: --sb-width 0.3s ease;
 }
 .app-shell:not(.is-ready) .sidebar,
 .app-shell:not(.is-ready) .app-content,
 .app-shell:not(.is-ready) .sidebar-burger,
+.app-shell:not(.is-ready) .sidebar-brand,
+.app-shell:not(.is-ready) .sidebar-sublist,
 .app-shell:not(.is-ready) .app-header-inner {
   transition: none;
 }
@@ -771,10 +768,10 @@ code {
   .sidebar,
   .app-content,
   .sidebar-burger,
+  .sidebar-brand,
+  .sidebar-sublist,
   .app-header-inner,
   .app-shell.is-ready .sidebar,
-  .app-shell.is-ready .app-content,
-  .app-shell.is-ready .sidebar-burger,
   .sidebar::after {
     transition: none;
   }

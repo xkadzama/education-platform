@@ -82,6 +82,15 @@ const ICONS = {
   docs: <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8" />,
 }
 
+// Пункты без собственной иконки получают «точку» — декоративный маркер,
+// который остаётся видимым в свёрнутом рельсе (там, где у остальных иконки).
+const Bullet = () => (
+  <svg className="sidebar-icon-svg sidebar-bullet" xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <circle cx="12" cy="12" r="4" />
+  </svg>
+)
+
 function Icon({ name }) {
   return (
     <svg className="sidebar-icon-svg" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -117,9 +126,14 @@ function AccordionSection({ item, controlled, openId, setOpenId }) {
       <button type="button" className="sidebar-toggle-btn hs-accordion-toggle"
         aria-expanded={isOpen} aria-controls={`${item.id}-accordion-collapse`}
         onClick={toggle}>
-        {item.icon && <Icon name={item.icon} />}
-        {item.label}
-        <Chevron />
+        {/* .sidebar-item-content — «выдвижной ящик»: в свёрнутом состоянии его
+            левый край уезжает за границу панели, поэтому в видимом рельсе 56px
+            остаются именно иконка пункта и маркер-точка */}
+        <span className="sidebar-item-content">
+          {item.icon ? <Icon name={item.icon} /> : <Bullet />}
+          {item.label}
+          <Chevron />
+        </span>
       </button>
       <div id={`${item.id}-accordion-collapse`}
         className={`hs-accordion-content${isOpen ? '' : ' hidden'}`}
@@ -140,9 +154,11 @@ function SidebarLink({ item, nested }) {
   return (
     <li>
       <NavLink to={item.to} className={({ isActive }) => `sidebar-link${isActive ? ' sidebar-nav-active' : ''}${nested ? ' sidebar-link-nested' : ''}`}>
-        {!nested && item.icon && <Icon name={item.icon} />}
-        {item.label}
-        {item.badge && <span className="sidebar-badge">{item.badge}</span>}
+        <span className="sidebar-item-content">
+          {item.icon ? <Icon name={item.icon} /> : <Bullet />}
+          {item.label}
+          {item.badge && <span className="sidebar-badge">{item.badge}</span>}
+        </span>
       </NavLink>
     </li>
   )
@@ -170,48 +186,43 @@ export default function Sidebar({ open, setOpen }) {
   }, [open])
 
   return (
-    <>
-      <div ref={panelRef} id="sidebar-panel" className={`sidebar${open ? ' sidebar-open' : ''}`}
-        role="dialog" tabIndex={-1} aria-label="Сайдбар">
-        {/* Бургер-переключатель: position:fixed внутри панели.
-            • Открытая панель → кнопка у ПРАВОГО края чёрного фона меню
-              (left = calc(100vw - sidebar-w + sidebar-w - burger-x)).
-            • Закрытая панель → уезд compensated через --sb-shift (0 ↔ -240px):
-              фиксированная позиция пересчитывается и кнопка встаёт у ЛЕВОГО
-              края экрана — не исчезает, клик снова открывает меню.
-            Анимация left синхронна с transform панели (0.3s). */}
-        <button
-          type="button"
-          className="sidebar-burger"
-          aria-haspopup="dialog"
-          aria-expanded={open}
-          aria-controls="sidebar-panel"
-          aria-label={open ? 'Свернуть меню' : 'Открыть меню'}
-          onClick={() => setOpen((v) => !v)}
-        >
-          {/* icon «развернуть панель» — показываем, когда панель свёрнута */}
-          <svg className="sidebar-burger-icon sidebar-burger-expand" xmlns="http://www.w3.org/2000/svg"
-            width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <rect width="18" height="18" x="3" y="3" rx="2" />
-            <path d="M9 3v18" />
-            <path d="m16 15-3-3 3-3" />
-          </svg>
-          {/* icon «свернуть панель» — показываем, когда панель открыта */}
-          <svg className="sidebar-burger-icon sidebar-burger-collapse" xmlns="http://www.w3.org/2000/svg"
-            width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <rect width="18" height="18" x="3" y="3" rx="2" />
-            <path d="M9 3v18" />
-            <path d="m15 10-3 3 3 3" />
-          </svg>
-        </button>
+    <div ref={panelRef} id="sidebar-panel" className={`sidebar${open ? ' sidebar-open' : ''}`}
+      role="dialog" tabIndex={-1} aria-label="Сайдбар">
 
-        <div className="sidebar-inner">
-        {/* Header: бренд + бургер на ОДНОМ уровне (flex-строка). Бургер —
-            абсолютно позиционированный ребёнок .sidebar, визуально sits на
-            линии заголовка у правого края панели. */}
+      <div className="sidebar-inner">
+        {/* Header: БУРГЕР + бренд на ОДНОМ уровне (flex-строка).
+            • Открытая панель → бургер у ЛЕВОГО края, бренд прижат к правому;
+              клик сворачивает меню.
+            • Свёрнутая панель → рельс 56px: бренд гаснет, flex-строка
+              сжимается вместе с шириной — бургер остаётся видимым и
+              кликабельным (клик снова открывает меню). */}
         <header className="sidebar-header">
+          <button
+            type="button"
+            className="sidebar-burger"
+            aria-haspopup="dialog"
+            aria-expanded={open}
+            aria-controls="sidebar-panel"
+            aria-label={open ? 'Свернуть меню' : 'Открыть меню'}
+            onClick={() => setOpen((v) => !v)}
+          >
+            {/* icon «развернуть панель» — показываем, когда панель свёрнута */}
+            <svg className="sidebar-burger-icon sidebar-burger-expand" xmlns="http://www.w3.org/2000/svg"
+              width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect width="18" height="18" x="3" y="3" rx="2" />
+              <path d="M9 3v18" />
+              <path d="m16 15-3-3 3-3" />
+            </svg>
+            {/* icon «свернуть панель» — показываем, когда панель открыта */}
+            <svg className="sidebar-burger-icon sidebar-burger-collapse" xmlns="http://www.w3.org/2000/svg"
+              width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect width="18" height="18" x="3" y="3" rx="2" />
+              <path d="M9 3v18" />
+              <path d="m15 10-3 3 3 3" />
+            </svg>
+          </button>
           <a className="sidebar-brand" href="/" aria-label="Xkadzama — на главную">Xkadzama</a>
         </header>
 
@@ -227,8 +238,7 @@ export default function Sidebar({ open, setOpen }) {
             </ul>
           </div>
         </nav>
-        </div>
       </div>
-    </>
+    </div>
   )
 }
