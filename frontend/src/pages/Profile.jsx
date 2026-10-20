@@ -3,33 +3,64 @@ import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
 import { Avatar } from '../components/AvatarButton'
+// Стили списка профиля (.user-info) и подсказок (.auth-hint) живут в Auth.css —
+// без этого импорта страница рендерилась «без оформления», из-за чего данные
+// выглядели пропавшими.
+import './Auth.css'
 
 // «Мой профиль»: показываем только те данные, что реально есть в модели User / ответе /auth/me
 export default function Profile() {
-  const { user: rawUser, updateUser } = useAuth()
+  const { user: ctxUser, updateUser } = useAuth()
   const fileInputRef = useRef(null)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
-  // Если пользователя в контексте нет или у него нет email (например, протухший
-  // токен) — перезапрашиваем /auth/me напрямую, чтобы страница не была пустой.
-  const [refetched, setRefetched] = useState(null)
+  // Собственный снимок данных из БД: страница НЕ зависит от того, успел ли
+  // AuthContext подхватить пользователя. Всегда запрашиваем /auth/me сами —
+  // так данные отображаются гарантированно (и после прямого захода по URL
+  // http://localhost:5173/profile с F5).
+  const [me, setMe] = useState(ctxUser ?? null)
   const [fetchState, setFetchState] = useState('idle') // idle | loading | error
 
   useEffect(() => {
-    if (rawUser?.email) return // данные уже есть — повторный запрос не нужен
+    let cancelled = false
     setFetchState('loading')
     api
       .get('/auth/me')
       .then((res) => {
-        setRefetched(res.data)
-        updateUser(res.data) // синхронизируем контекст (шапка/аватар тоже обновятся)
+        if (cancelled) return
+        // Защита от «двойной обёртки»: если бэкенд/прокси вернули {data: {...}},
+        // берём вложенный объект, иначе setMe({data:...}) дал бы пустые поля.
+        const payload = res.data?.data && !('email' in res.data) && !('id' in res.data)
+          ? res.data.data
+          : res.data
+        setMe(payload)
+        updateUser(payload) // синхронизируем контекст (шапка/аватар тоже обновятся)
         setFetchState('idle')
       })
-      .catch(() => setFetchState('error'))
+      .catch(() => !cancelled && setFetchState('error'))
+    return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const displayUser = { first_name: '', last_name: '', email: '', role: '', ...(rawUser || refetched) }
+  // Приоритет: свежий ответ /auth/me > пользователь из контекста.
+  // НОРМАЛИЗАЦИЯ: бэкенд (pydantic UserResponse) может возвращать поля с
+  // другими именами (firstName, fullName и т.п.) или null — раньше из-за этого
+  // JSON в DevTools приходил, а страница оставалась «пустой»: JSX читал
+  // displayUser.first_name, которого в ответе нет. Приводим любые варианты
+  // к единой форме и заменяем null на ''.
+  const normalize = (u) => {
+    if (!u) return null
+    const full = String(u.full_name ?? u.fullName ?? '').trim()
+    return {
+      ...u,
+      first_name: String(u.first_name ?? u.firstName ?? (full.split(/\s+/)[0] ?? '')).trim(),
+      last_name: String(u.last_name ?? u.lastName ?? (full.split(/\s+/)[1] ?? '')).trim(),
+      email: String(u.email ?? ''),
+      role: String(u.role ?? ''),
+      avatar_url: u.avatar_url ?? u.avatarUrl ?? null,
+    }
+  }
+  const displayUser = { first_name: '', last_name: '', email: '', role: '', ...(normalize(me || ctxUser) || {}) }
 
   // Загрузка фото: POST /auth/avatar (multipart/form-data, поле `file`)
   const handleFileChange = async (e) => {
@@ -56,12 +87,13 @@ export default function Profile() {
     }
   }
 
-  // Ровно те поля, которые возвращает бэкенд (UserResponse)
+  // Ровно те поля, которые возвращает бэкенд (UserResponse).
+  // Если поле пришло пустым/null — показываем «—», чтобы строка была видна.
   const rows = [
-    { label: 'Имя', value: displayUser.first_name },
-    { label: 'Фамилия', value: displayUser.last_name },
-    { label: 'Email', value: displayUser.email },
-    { label: 'Роль', value: displayUser.role },
+    { label: 'Имя', value: displayUser.first_name || '—' },
+    { label: 'Фамилия', value: displayUser.last_name || '—' },
+    { label: 'Email', value: displayUser.email || '—' },
+    { label: 'Роль', value: displayUser.role || '—' },
   ]
 
   return (
@@ -83,6 +115,14 @@ export default function Profile() {
         )}
 
         <section className="card card-wide">
+          {/* Индикатор сырого ответа: если бэкенд вернул поля с именами,
+              которых фронт не ждёт (например {name: ...} вместо first_name),
+              страница НЕ будет выглядеть пустой — увидим реальные ключи. */}
+          {me && !displayUser.first_name && !displayUser.email && (
+            <p className="field-error" role="alert">
+              Бэкенд вернул неизвестный формат пользователя: {JSON.stringify(me)}
+            </p>
+          )}
           {/* Аватар: реальное фото, если загружено, иначе инициалы */}
           <div className="profile-header">
             <Avatar user={displayUser} size="lg" />
