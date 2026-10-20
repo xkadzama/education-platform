@@ -1,9 +1,15 @@
 import { lessons } from '../data/lessons'
 
-// Страница «Уроки»: пройденные и предстоящие уроки (пока заглушка по темам Python).
+// Страница «Уроки».
+// ВАЖНО: данные об уроках берутся из локальной заглушки src/data/lessons.js,
+// они НЕ зависят от PostgreSQL/FastAPI. Если список пуст — значит, проблема
+// не в БД (в ней есть только таблица users), а в загрузке страницы (см. ниже
+// защиту от падений на Profile/Dashboard).
 export default function Lessons() {
-  const completed = lessons.filter((l) => l.status === 'completed')
-  const upcoming = lessons.filter((l) => l.status === 'upcoming')
+  // Защита от undefined/null на случай, если модуль данных повредят при правках
+  const safeLessons = Array.isArray(lessons) ? lessons : []
+  const completed = safeLessons.filter((l) => l.status === 'completed')
+  const upcoming = safeLessons.filter((l) => l.status === 'upcoming')
 
   return (
     <div className="page">
@@ -14,6 +20,10 @@ export default function Lessons() {
             Список уроков пока — заглушка по темам Python. Данные хранятся в{' '}
             <code>src/data/lessons.js</code>, позже подключим API.
           </p>
+
+          {safeLessons.length === 0 && (
+            <p className="text-secondary">Уроки ещё не добавлены.</p>
+          )}
 
           <div className="lessons-section">
             <h2 className="lessons-heading">Пройдено · {completed.length}</h2>

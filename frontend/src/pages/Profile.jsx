@@ -6,7 +6,10 @@ import { Avatar } from '../components/AvatarButton'
 
 // «Мой профиль»: показываем только те данные, что реально есть в модели User / ответе /auth/me
 export default function Profile() {
-  const { user, updateUser } = useAuth()
+  const { user: rawUser, updateUser } = useAuth()
+  // Защита от пустых полей из БД (например, при регистрации до появления
+  // first_name/last_name) — иначе страница могла падать на undefined.
+  const user = { first_name: '', last_name: '', email: '', role: '', ...rawUser }
   const fileInputRef = useRef(null)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
