@@ -153,3 +153,71 @@
 
 **Статус:** изменения в рабочем дереве (AppLayout.jsx, Sidebar.jsx, components.css, журнал) — коммит
 не создан; при следующей работе закоммитить и дописать хеш сюда.
+
+---
+
+## 2026-10-21 — Сайдбар и бургер: полная адаптация эталонного Preline-сниппета (#hs-sidebar-content-push)
+
+**Задача:** пользователь прислал эталонный HTML сниппета сайдбара (Preline hs-overlay, «content push»)
+и попросил адаптировать его под проект, не копируя цветовые сочетания сниппета. Предыдущие варианты
+(грид с рельсом + белая карточка-подложка) отменены — структура теперь точно как в эталоне.
+
+**Эталонная структура (что перенесли):**
+- fixed-панель `w-64` (256px) слева на всю высоту, `border-e`, `z-60`; desktop-поведение
+  `[--opened:lg] [--auto-close:lg] [--is-layout-affect:true]`: панель уезжает за левый край
+  (`-translate-x-full ↔ translate-x-0`, transition-all 300ms), контент сдвигается через
+  margin-inline-start (`sm:ms-64`) — «content push»;
+- header панели: бренд (`text-xl`) + круглая кнопка закрытия X (`size-6 rounded-full`, только на
+  мобильных `-me-2`);
+- body: `<nav>` со скроллом и тонким скроллбаром (`[&::-webkit-scrollbar]:w-2`, thumb без скругления);
+- навигация: `space-y-1`, пункты/кнопки аккордеонов — `flex items-center gap-x-3.5 py-2 px-2.5 text-sm
+  rounded-lg` + hover/focus фоны; SVG-иконки `size-4 stroke-2` (lucide-наборы из сниппета);
+- аккордеоны `hs-accordion` c `data-hs-accordion-always-open` (одна секция открыта), chevron up/down
+  `ms-auto size-4`, вложенные списки `ps-7 space-y-1`, ссылки-«линки» без иконок;
+- бейдж «New»: `ms-auto py-0.5 px-1.5 text-xs rounded-full`;
+- Navigation Toggle (бургер): круглая кнопка `size-8 rounded-full` лежит **в контенте** (`p-2`),
+  две иконки panel-left/panel-right переключаются по состоянию;
+- мобильные (<lg): панель — overlay поверх контента с затемнением (`--overlay-backdrop`), контент не
+  сдвигается; close-X внутри панели видна только там.
+
+**Наши адаптации (не из эталона):**
+- цвета — наша палитра tokens.css §1: панель чёрная `var(--color-primary)` (bg-sidebar), border-e —
+  rgba(255,255,255,.15), текст пунктов rgba(255,255,255,.85); HOVER пунктов — БЕЛЫЙ фон + тёмный текст
+  (сохранено требование пользователя); активный пункт — `var(--color-accent)` !important; фокус — #ddd;
+- панель начинается ПОД шапкой (`top: var(--header-h)=64px`, z-index 5 < sticky-шапки 10): топбар с
+  бургером (`.content-topbar`, высота 64px) визуально продолжает AppHeader и стоит ровно напротив
+  панели — бургер не прыгает при выезде/скрытии;
+- React-реализация вместо Preline JS: состояние `open` в AppLayout (по умолчанию true = `--opened:lg`),
+  класс `.sidebar-open` → translateX(0); аккордеоны — компонент AccordionSection: верхний уровень
+  controlled (always-open одна секция, по умолчанию раскрыта первая аккордеон-секция «Курсы»),
+  вложенные — локальное состояние; скрытие — класс `.hidden` (аналог `hs-accordion-content hidden`);
+- доступность сохранена: role="dialog", aria-label, aria-expanded/controls, Escape закрывает панель,
+  возврат фокуса на панель при закрытии; переходы включаются после первого кадра (`.is-ready` на
+  app-shell) + prefers-reduced-motion.
+
+**Файлы:**
+1. `frontend/src/components/Sidebar.jsx` — полностью переписан: разметка panel→inner→header(бренд+X)→
+   nav(аккордеоны/линки/бейдж); данные NAV массивом (Уроки, Курсы▸Frontend/Дизайн▸ссылки, Профиль,
+   Проекты, Расписание+бейдж «Новое», Документация — все on-маршруты, несуществующих путей не даём);
+   ICONS/Chevron — lucide-SVG из эталона 1:1; id="sidebar-panel" для aria-controls бургера.
+2. `frontend/src/components/AppLayout.jsx` — переписан: app-shell(.is-ready) → AppHeader →
+   app-body(.app-body-open) → Sidebar(fixed) + main.app-content (.content-topbar с бургером
+   [две svg-иконки по состоянию] + div.container.app-content-inner{children}). Пропс ready убран —
+   анимации живут на .sidebar/.app-content через родителя .app-shell.is-ready.
+3. `frontend/src/styles/components.css` — весь блок сайдбара заменён: токены --sidebar-w 256px /
+   --header-h 64px; .sidebar fixed top:var(--header-h) translateX(-100%)↔0 + visibility; стили
+   header/X/nav-скроллбар/списков/аккордеонов/бейджа — геометрия 1:1 из tailwind-классов эталона
+   (пересчёт: w-64=256px, size-8=32px, size-6=28px, gap-x-3.5=14px, py-2=8px, px-2.5=10px, ps-7=28px);
+   .app-content margin-inline-start 0↔256px transition 300ms (push); @media ≤1024px — backdrop
+   (::after, opacity 0↔1) и отсутствие сдвига контента; reduced-motion. Старые правила
+   (@property --nav-col-w, .sidebar-card/-rail/-nav/-toggle/-list/-link старого вида, мобильный грид)
+   удалены.
+
+**Проверка:** `npm run build` — успешно (376–405ms); `npx oxlint Sidebar.jsx AppLayout.jsx` —
+0 warnings/errors. Ожидаемое поведение: загрузка — панель открыта слева под шапкой; клик по бургеру —
+панель уезжает влево (300ms), контент плавно растягивается на всю ширину; повторный клик/Escape —
+выезжает обратно; на мобильных (<1024px) панель — overlay с затемнением, закрытие крестиком в шапке
+панели; hover на «Уроки» — белый фон/тёмный текст; аккордеоны раскрываются (chevron поворот).
+
+**Статус:** изменения в рабочем дереве (Sidebar.jsx, AppLayout.jsx, components.css, журнал) — коммит
+не создан; при следующей работе закоммитить и дописать хеш сюда.
