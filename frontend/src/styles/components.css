@@ -500,10 +500,11 @@ code {
 
 /* Header: py-4 px-2 flex justify-between items-center gap-x-2 — 1:1 из эталона.
    Порядок детей: бренд (flex-none) → wrap X (mobile) → wrap minify-toggle
-   (desktop). В мини-режиме бренд гаснет, а строка обрезается справа по краю
-   рельса 52px; переключатель лежит в статичной позиции (256−8−36 = 212px),
-   поэтому для его видимости строка сдвигается ВЛЕВО так, чтобы кнопка
-   оказалась в центре рельса (26 − 18 = −8px). */
+   (desktop). В мини-режиме бренд скрыт полностью (display:none), поэтому
+   строка header становится узкой (36px кнопка + паддинги = 52px) и целиком
+   помещается в рельс — бургер остаётся видимым ВНУТРИ чёрной линии сайдбара,
+   ровно по центру рельса 52px (52/2 − 36/2 = 8px от края = px-2). Никаких
+   translateX-сдвигов строки больше не нужно. */
 .sidebar-header {
   padding: var(--space-sm) 8px;                /* py-4 px-2 */
   display: flex;
@@ -511,13 +512,6 @@ code {
   align-items: center;
   gap: 8px;                                    /* gap-x-2 */
 }
-@media (min-width: 1025px) {
-  .sidebar-minified .sidebar-header {
-    transform: translateX(-8px);               /* бургер по центру рельса 52px */
-    transition: transform 0.3s ease;           /* синхронно с анимацией ширины */
-  }
-}
-.app-shell:not(.is-ready) .sidebar-header { transition: none; }
 
 .sidebar-brand {
   font-family: var(--font-heading);
@@ -529,12 +523,12 @@ code {
   flex: none;                                  /* flex-none из эталона */
   transition: opacity 0.3s ease;
 }
-/* hs-overlay-minified:hidden — в мини-режиме бренд скрыт */
+/* hs-overlay-minified:hidden — в мини-режиме бренд убран ИЗ ПОТОКА
+   (display:none, как в эталоне): иначе он растягивает justify-between строку
+   header на 256px и выталкивает бургер за правый край рельса под
+   overflow-x:hidden — именно поэтому кнопка «пропадала» после закрытия */
 .sidebar-minified .sidebar-brand {
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  transition: opacity 0.3s ease, visibility 0s linear 0.3s;
+  display: none;
 }
 .sidebar-brand:hover { color: var(--color-accent); }
 .sidebar-brand:focus-visible { outline: none; opacity: 0.8; }
@@ -749,6 +743,14 @@ code {
 }
 .sidebar-burger:hover { background: #333333; }     /* hover:bg-gray-100 → --color-hover */
 .sidebar-burger:focus-visible { outline: none; background: #333333; }
+/* Плавное проявление бургера при сворачивании панели: бренд исчезает из
+   потока (display:none), строка header мгновенно сжимается до 52px и кнопка
+   остаётся в центре рельса; opacity-переход (0.3s, как duration-300 эталона)
+   скрадывает этот скачок. В мини-режиме класс .sidebar-open сохраняется
+   (в Sidebar.jsx isOpen = state !== 'hidden'), поэтому кнопка видима всегда,
+   пока панель не скрыта полностью (мобильный hidden — там вся панель уедет
+   за край вместе с кнопкой, reopening делает внешняя «Open») */
+.sidebar-burger { transition: background-color 0.15s ease, color 0.15s ease, opacity 0.3s ease; }
 .sidebar-burger-icon { width: 16px; height: 16px; flex: none; stroke: currentColor; }
 /* Две иконки эталона (chevron-right/left, hs-overlay-minified:block/hidden):
    показываем соответствующую состоянию панели */
