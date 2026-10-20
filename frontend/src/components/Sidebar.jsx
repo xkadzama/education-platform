@@ -190,13 +190,15 @@ export default function Sidebar({ open, setOpen }) {
       role="dialog" tabIndex={-1} aria-label="Сайдбар">
 
       <div className="sidebar-inner">
-        {/* Header: БУРГЕР + бренд на ОДНОМ уровне (flex-строка).
-            • Открытая панель → бургер у ЛЕВОГО края, бренд прижат к правому;
-              клик сворачивает меню.
-            • Свёрнутая панель → рельс 56px: бренд гаснет, flex-строка
-              сжимается вместе с шириной — бургер остаётся видимым и
-              кликабельным (клик снова открывает меню). */}
+        {/* Header: БРЕНД + бургер на ОДНОМ уровне (flex-строка).
+            • Открытая панель → бренд у ЛЕВОГО края, бургер прижат к ПРАВОМУ
+              краю чёрного фона; клик сворачивает меню.
+            • Свёрнутая панель → рельс 56px: бренд гаснет и уезжает за правую
+              границу обрезки, а бургер (fixed, right = ширине панели) плавно
+              переезжает к левому краю сайта и остаётся единственной видимой
+              интерактивной частью меню — клик снова открывает его. */}
         <header className="sidebar-header">
+          <a className="sidebar-brand" href="/" aria-label="Xkadzama — на главную">Xkadzama</a>
           <button
             type="button"
             className="sidebar-burger"
@@ -223,7 +225,6 @@ export default function Sidebar({ open, setOpen }) {
               <path d="m15 10-3 3 3 3" />
             </svg>
           </button>
-          <a className="sidebar-brand" href="/" aria-label="Xkadzama — на главную">Xkadzama</a>
         </header>
 
         {/* Body: навигация со скроллом */}
