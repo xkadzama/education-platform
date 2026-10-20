@@ -170,41 +170,43 @@ export default function Sidebar({ open, setOpen }) {
   }, [open])
 
   return (
-    <div ref={panelRef} id="sidebar-panel" className={`sidebar${open ? ' sidebar-open' : ''}`}
-      role="dialog" tabIndex={-1} aria-label="Сайдбар">
-      {/* Бургер-переключатель: формально ВНУТРИ сайдбара, но позиционируется
-          абсолютно (fixed-контекст панели) и при закрытии удерживается в
-          зоне видимости экрана (left: calc(100vw - w - 12px)) — то есть
-          после сворачивания на экране остаётся видна ТОЛЬКО эта кнопка,
-          повторный клик по ней снова открывает панель. */}
-      <button
-        type="button"
-        className="sidebar-burger"
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        aria-controls="sidebar-panel"
-        aria-label={open ? 'Свернуть меню' : 'Открыть меню'}
-        onClick={() => setOpen((v) => !v)}
-      >
-        {/* icon «развернуть панель» — показываем, когда панель свёрнута */}
-        <svg className="sidebar-burger-icon sidebar-burger-expand" xmlns="http://www.w3.org/2000/svg"
-          width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <rect width="18" height="18" x="3" y="3" rx="2" />
-          <path d="M9 3v18" />
-          <path d="m16 15-3-3 3-3" />
-        </svg>
-        {/* icon «свернуть панель» — показываем, когда панель открыта */}
-        <svg className="sidebar-burger-icon sidebar-burger-collapse" xmlns="http://www.w3.org/2000/svg"
-          width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-          <rect width="18" height="18" x="3" y="3" rx="2" />
-          <path d="M9 3v18" />
-          <path d="m15 10-3 3 3 3" />
-        </svg>
-      </button>
+    <>
+      {/* Бургер-переключатель: живёт ВНЕ панели (.sidebar-burger-wrap), чтобы
+          не уезжать за экран вместе с ней. На десктопе прижмётся к левому краю
+          сайта в свёрнутом состоянии и «едет» к правому краю меню при открытии
+          (анимация left синхронно с transform панели). */}
+      <div className={`sidebar-burger-wrap${open ? ' is-open' : ''}`}>
+        <button
+          type="button"
+          className="sidebar-burger"
+          aria-haspopup="dialog"
+          aria-expanded={open}
+          aria-controls="sidebar-panel"
+          aria-label={open ? 'Свернуть меню' : 'Открыть меню'}
+          onClick={() => setOpen((v) => !v)}
+        >
+          {/* icon «развернуть панель» — показываем, когда панель свёрнута */}
+          <svg className="sidebar-burger-icon sidebar-burger-expand" xmlns="http://www.w3.org/2000/svg"
+            width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <rect width="18" height="18" x="3" y="3" rx="2" />
+            <path d="M9 3v18" />
+            <path d="m16 15-3-3 3-3" />
+          </svg>
+          {/* icon «свернуть панель» — показываем, когда панель открыта */}
+          <svg className="sidebar-burger-icon sidebar-burger-collapse" xmlns="http://www.w3.org/2000/svg"
+            width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <rect width="18" height="18" x="3" y="3" rx="2" />
+            <path d="M9 3v18" />
+            <path d="m15 10-3 3 3 3" />
+          </svg>
+        </button>
+      </div>
 
-      <div className="sidebar-inner">
+      <div ref={panelRef} id="sidebar-panel" className={`sidebar${open ? ' sidebar-open' : ''}`}
+        role="dialog" tabIndex={-1} aria-label="Сайдбар">
+        <div className="sidebar-inner">
         {/* Header: бренд (бургер вынесен из header — он теперь «пришит»
             к правому краю панели и всегда виден) */}
         <header className="sidebar-header">
@@ -223,7 +225,8 @@ export default function Sidebar({ open, setOpen }) {
             </ul>
           </div>
         </nav>
+        </div>
       </div>
-    </div>
+    </>
   )
 }
