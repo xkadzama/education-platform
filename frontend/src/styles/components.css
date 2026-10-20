@@ -521,6 +521,7 @@ code {
   text-decoration: none;
   white-space: nowrap;
   flex: none;                                  /* flex-none из эталона */
+  margin-inline-start: 10px;                   /* доп. отступ 10px от левого края (по запросу) */
   transition: opacity 0.3s ease;
 }
 /* hs-overlay-minified:hidden — в мини-режиме бренд убран ИЗ ПОТОКА
