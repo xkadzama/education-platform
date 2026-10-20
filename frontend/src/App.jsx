@@ -5,6 +5,7 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import Profile from './pages/Profile'
+import Lessons from './pages/Lessons'
 
 // Разворачиваем приложение только после проверки токена на сервере
 function AppContent() {
@@ -28,6 +29,14 @@ function AppContent() {
         element={
           <ProtectedRoute>
             <Profile />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/lessons"
+        element={
+          <ProtectedRoute>
+            <Lessons />
           </ProtectedRoute>
         }
       />

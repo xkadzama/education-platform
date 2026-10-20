@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
+import AppLayout from '../components/AppLayout'
 import { Avatar } from '../components/AvatarButton'
 
 // «Мой профиль»: показываем только те данные, что реально есть в модели User / ответе /auth/me
@@ -45,8 +46,9 @@ export default function Profile() {
   ]
 
   return (
-    <div className="page">
-      <div className="container page-narrow">
+    <AppLayout>
+      <div className="page">
+        <div className="page-narrow">
         {/* Возврат на главную */}
         <Link to="/" className="back-link">← На главную</Link>
 
@@ -92,7 +94,8 @@ export default function Profile() {
             ))}
           </ul>
         </section>
+        </div>
       </div>
-    </div>
+    </AppLayout>
   )
 }

@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
-import AppHeader from '../components/AppHeader'
+import AppLayout from '../components/AppLayout'
 
 // Главная (защищённая) страница: доступна только после входа по JWT.
 // Справа сверху — окошко с аватаркой, ведущее в «Мой профиль».
@@ -8,11 +8,9 @@ export default function Dashboard() {
   const { user, logout } = useAuth()
 
   return (
-    <>
-      <AppHeader />
-
+    <AppLayout>
       <div className="page">
-        <div className="container page-narrow">
+        <div className="page-narrow">
           <h1 className="page-title">Добро пожаловать, {user.first_name}!</h1>
           <p className="text-secondary">
             Вы видите эту страницу, потому что сервер проверил ваш Bearer-токен в эндпоинте{' '}
@@ -34,6 +32,6 @@ export default function Dashboard() {
           </section>
         </div>
       </div>
-    </>
+    </AppLayout>
   )
 }
