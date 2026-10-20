@@ -3,15 +3,17 @@ import { NavLink } from 'react-router-dom'
 
 // Сайдбар адаптирован с эталонного HTML-сниппета (Preline-style):
 //  • fixed-панель w-64 слева, bg-sidebar + border-e;
-//  • header: бренд + КРУГЛАЯ кнопка закрытия X (только на мобильных);
+//  • header: бренд + бургер-переключатель панели (перенесён внутрь сайдбара);
 //  • nav со скроллом и тонким скроллбаром;
 //  • пункты: flex gap-x-3.5 py-2 px-2.5 text-sm rounded-lg + hover/focus;
 //  • аккордеоны (Users/Account/Projects) с chevron-up/down и вложенными
 //    списками ps-7 — always-open группа (одна открыта);
 //  • бейдж «New» (ms-auto rounded-full);
-//  • бургер (panel/sidebar icon) живёт В КОНТЕНТЕ (lg:hidden) и открывает панель;
 //  • desktop: -translate-x-full → translate-x-0 при сворачивании, контент
 //    сдвигается через margin-inline-start (content-push).
+// Бургер лежит в header панели и уезжает вместе с ней за левый край;
+// когда панель свёрнута, её край (с полоской-«ручкой») остаётся виден у
+// левого края экрана — по нему кликают, чтобы вернуть меню.
 // Цвета сниппета (bg-sidebar и т.п.) не копируем — наша палитра из tokens.css.
 // По умолчанию сайдбар открыт ([--opened:lg] → open=true на десктопе).
 
@@ -166,21 +168,43 @@ export default function Sidebar({ open, setOpen }) {
     }
   }, [open])
 
+  // Клик по видимой полоске-краю свёрнутой панели («ручке») раскрывает её.
+  // В открытом состоянии обработчик ничего не делает.
+  const onPanelClick = () => { if (!open) setOpen(true) }
+
   return (
     <div ref={panelRef} id="sidebar-panel" className={`sidebar${open ? ' sidebar-open' : ''}`}
-      role="dialog" tabIndex={-1} aria-label="Сайдбар">
+      role="dialog" tabIndex={-1} aria-label="Сайдбар" onClick={onPanelClick}>
       <div className="sidebar-inner">
-        {/* Header: бренд + круглая кнопка закрытия (мобильные) */}
+        {/* Header: бренд + бургер-переключатель панели (перенесён внутрь сайдбара) */}
         <header className="sidebar-header">
           <a className="sidebar-brand" href="/" aria-label="Xkadzama — на главную">Xkadzama</a>
-          <div className="sidebar-close-wrap">
-            <button type="button" className="sidebar-close-btn" onClick={() => setOpen(false)}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
-                fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"
-                strokeLinejoin="round" aria-hidden="true"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
-              <span className="sr-only">Закрыть</span>
-            </button>
-          </div>
+          <button
+            type="button"
+            className="sidebar-burger"
+            aria-haspopup="dialog"
+            aria-expanded={open}
+            aria-controls="sidebar-panel"
+            aria-label={open ? 'Свернуть меню' : 'Открыть меню'}
+            onClick={() => setOpen((v) => !v)}
+          >
+            {/* icon «свернуть панель» — показываем, когда панель открыта */}
+            <svg className="sidebar-burger-icon sidebar-burger-open" xmlns="http://www.w3.org/2000/svg"
+              width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect width="18" height="18" x="3" y="3" rx="2" />
+              <path d="M9 3v18" />
+              <path d="m15 10-3 3 3 3" />
+            </svg>
+            {/* icon «открыть панель» — показываем, когда панель свёрнута */}
+            <svg className="sidebar-burger-icon sidebar-burger-close" xmlns="http://www.w3.org/2000/svg"
+              width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect width="18" height="18" x="3" y="3" rx="2" />
+              <path d="M9 3v18" />
+              <path d="m16 15-3-3 3-3" />
+            </svg>
+          </button>
         </header>
 
         {/* Body: навигация со скроллом */}
