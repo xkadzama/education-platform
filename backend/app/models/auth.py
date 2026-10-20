@@ -14,6 +14,7 @@ class User(Base):
 	first_name: Mapped[str] = mapped_column(String(100), nullable=False)
 	last_name: Mapped[str] = mapped_column(String(100), nullable=False)
 	role: Mapped[str] = mapped_column(String, default='student', nullable=False)
+	avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True)  # путь к фото, напр. /uploads/avatars/1_ab12cd.jpg
 	is_active: Mapped[bool] = mapped_column(Boolean,default=True,nullable=False)
 	created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 	updated_at: Mapped[datetime] = mapped_column(server_default=func.now(),onupdate=func.now())

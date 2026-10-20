@@ -1,7 +1,10 @@
 from datetime import timedelta
+import io
+import secrets
+from pathlib import Path
 
 import jwt
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -103,4 +106,58 @@ async def refresh(body: RefreshRequest, session: AsyncSession = Depends(get_db))
 @router.get('/me', response_model=UserResponse)
 async def me(current_user: User = Depends(get_current_user)):
 	"""Доступ к этому эндпоинту только с заголовком `Authorization: Bearer <access_token>`."""
+	return current_user
+
+
+# --- Загрузка фото профиля ----------------------------------------------------
+ALLOWED_AVATAR_TYPES = {'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp'}
+MAX_AVATAR_SIZE = 5 * 1024 * 1024  # 5 МБ
+
+@router.post('/avatar', response_model=UserResponse)
+async def upload_avatar(
+	file: UploadFile = File(...),
+	current_user: User = Depends(get_current_user),
+	session: AsyncSession = Depends(get_db),
+):
+	"""Загружает фото профиля (multipart/form-data, поле `file`).
+
+	Принимает JPEG/PNG/WebP до 5 МБ, сохраняет в uploads/avatars и обновляет
+	поле avatar_url у текущего пользователя. Возвращает обновлённый профиль.
+	"""
+	content_type = (file.content_type or '').lower()
+	ext = ALLOWED_AVATAR_TYPES.get(content_type)
+	if ext is None:
+		raise HTTPException(status_code=400, detail='Allowed formats: JPEG, PNG, WebP')
+
+	data = await file.read()
+	if len(data) > MAX_AVATAR_SIZE:
+		raise HTTPException(status_code=413, detail='File too large (max 5 MB)')
+	if not data:
+		raise HTTPException(status_code=400, detail='Empty file')
+
+	# Проверяем подпись файла реальным декодером — content_type из браузера
+	# подделать проще простого.
+	try:
+		from PIL import Image
+		Image.open(io.BytesIO(data)).verify()
+	except Exception:
+		raise HTTPException(status_code=400, detail='File is not a valid image')
+
+	# Имя файла генерируем сами: id пользователя + случайный hex (никакого пути
+	# из запроса — защита от path traversal).
+	filename = f'{current_user.id}_{secrets.token_hex(6)}{ext}'
+	upload_dir = Path('uploads') / 'avatars'
+	upload_dir.mkdir(parents=True, exist_ok=True)
+	(upload_dir / filename).write_bytes(data)
+
+	# Удаляем старое фото, если оно было загружено через этот же механизм
+	old_url = current_user.avatar_url or ''
+	if old_url.startswith('/uploads/avatars/'):
+		old_path = Path('.' + old_url)
+		if old_path.is_file():
+			old_path.unlink(missing_ok=True)
+
+	current_user.avatar_url = f'/uploads/avatars/{filename}'
+	await session.commit()
+	await session.refresh(current_user)
 	return current_user
