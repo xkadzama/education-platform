@@ -171,11 +171,15 @@ export default function Sidebar({ open, setOpen }) {
 
   return (
     <>
-      {/* Бургер-переключатель: живёт ВНЕ панели (.sidebar-burger-wrap), чтобы
-          не уезжать за экран вместе с ней. На десктопе прижмётся к левому краю
-          сайта в свёрнутом состоянии и «едет» к правому краю меню при открытии
-          (анимация left синхронно с transform панели). */}
-      <div className={`sidebar-burger-wrap${open ? ' is-open' : ''}`}>
+      <div ref={panelRef} id="sidebar-panel" className={`sidebar${open ? ' sidebar-open' : ''}`}
+        role="dialog" tabIndex={-1} aria-label="Сайдбар">
+        {/* Бургер-переключатель: position:fixed внутри панели.
+            • Открытая панель → кнопка у ПРАВОГО края чёрного фона меню
+              (left = calc(100vw - sidebar-w + sidebar-w - burger-x)).
+            • Закрытая панель → уезд compensated через --sb-shift (0 ↔ -240px):
+              фиксированная позиция пересчитывается и кнопка встаёт у ЛЕВОГО
+              края экрана — не исчезает, клик снова открывает меню.
+            Анимация left синхронна с transform панели (0.3s). */}
         <button
           type="button"
           className="sidebar-burger"
@@ -202,13 +206,11 @@ export default function Sidebar({ open, setOpen }) {
             <path d="m15 10-3 3 3 3" />
           </svg>
         </button>
-      </div>
 
-      <div ref={panelRef} id="sidebar-panel" className={`sidebar${open ? ' sidebar-open' : ''}`}
-        role="dialog" tabIndex={-1} aria-label="Сайдбар">
         <div className="sidebar-inner">
-        {/* Header: бренд (бургер вынесен из header — он теперь «пришит»
-            к правому краю панели и всегда виден) */}
+        {/* Header: бренд + бургер на ОДНОМ уровне (flex-строка). Бургер —
+            абсолютно позиционированный ребёнок .sidebar, визуально sits на
+            линии заголовка у правого края панели. */}
         <header className="sidebar-header">
           <a className="sidebar-brand" href="/" aria-label="Xkadzama — на главную">Xkadzama</a>
         </header>
