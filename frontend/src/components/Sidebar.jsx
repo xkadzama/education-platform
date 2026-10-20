@@ -19,7 +19,7 @@ export default function Sidebar() {
     return () => cancelAnimationFrame(raf)
   }, [])
 
-  // Escape закрывает свёрнутый/открытый сайдбар — быстрый способ скрыть панель.
+  // Escape скрывает панель — быстрый способ закрыть меню.
   useEffect(() => {
     if (!open) return undefined
     const onKey = (e) => {
@@ -31,33 +31,37 @@ export default function Sidebar() {
 
   return (
     <aside className={`sidebar${open ? ' open' : ''}${ready ? ' is-ready' : ''}`}>
-      {/* Бургер: нажатие разворачивает панель, повторное — сворачивает обратно. */}
-      <button
-        type="button"
-        className="sidebar-toggle"
-        aria-expanded={open}
-        aria-controls="sidebar-nav"
-        aria-label={open ? 'Свернуть меню' : 'Открыть меню'}
-        title={open ? 'Свернуть меню' : 'Открыть меню'}
-        onClick={() => setOpen((v) => !v)}
-      >
-        <span className="sidebar-toggle-icon" aria-hidden="true">☰</span>
-      </button>
+      {/* Единый блок: бургер-шапка + панель. Бургер всегда виден и живёт
+          внутри блока на чёрном фоне; панель выезжает из-под него слева
+          направо (translateX), а не разворачивается по высоте. */}
+      <div className="sidebar-block">
+        <button
+          type="button"
+          className="sidebar-toggle"
+          aria-expanded={open}
+          aria-controls="sidebar-nav"
+          aria-label={open ? 'Свернуть меню' : 'Открыть меню'}
+          title={open ? 'Свернуть меню' : 'Открыть меню'}
+          onClick={() => setOpen((v) => !v)}
+        >
+          <span className="sidebar-toggle-icon" aria-hidden="true">☰</span>
+        </button>
 
-      <div className="sidebar-panel" id="sidebar-nav">
-        <nav className="sidebar-nav" aria-label="Основная навигация">
-          <ul className="sidebar-list">
-            {items.map((item) => (
-              <li key={item.to}>
-                {/* NavLink сам проставляет .active при совпадении маршрута */}
-                <NavLink to={item.to} className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}>
-                  <span className="sidebar-icon" aria-hidden="true">{item.icon}</span>
-                  <span className="sidebar-label">{item.label}</span>
-                </NavLink>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        <div className="sidebar-panel" id="sidebar-nav">
+          <nav className="sidebar-nav" aria-label="Основная навигация">
+            <ul className="sidebar-list">
+              {items.map((item) => (
+                <li key={item.to}>
+                  {/* NavLink сам проставляет .active при совпадении маршрута */}
+                  <NavLink to={item.to} className={({ isActive }) => `sidebar-link${isActive ? ' active' : ''}`}>
+                    <span className="sidebar-icon" aria-hidden="true">{item.icon}</span>
+                    <span className="sidebar-label">{item.label}</span>
+                  </NavLink>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </div>
       </div>
     </aside>
   )

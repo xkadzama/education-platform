@@ -399,30 +399,38 @@ code {
   align-items: start;
 }
 
-/* Каркас колонки: бургер + панель. Сайдбар — самостоятельный «блок»:
-   чёрный фон, белая рамка-обводка по стилям дизайн-системы (1px, --radius). */
+/* Колонка сайдбара в гриде приложения. Сам сайдбар — единый чёрный блок
+   (.sidebar-block), внутри которого живут бургер-шапка и панель меню. */
 .sidebar {
   position: sticky;
   top: calc(64px + var(--space-sm));             /* под шапкой (64px) + 16px воздуха */
   padding-top: var(--space-md);                  /* 32px от верха области контента */
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-xs);                          /* 8px между бургером и панелью */
 }
 
-/* Бургер: компактная чёрная кнопка в стиле кнопок дизайн-системы (§4) */
+/* Единый блок: бургер + панель — одна визуальная единица.
+   Чёрный фон (--color-primary), белая рамка 1px и радиус 8px по стилям
+   дизайн-системы (аналог border-card, но граница белая на чёрном фоне). */
+.sidebar-block {
+  background: var(--color-primary);              /* чёрный фон блока (#000) */
+  border: 1px solid #ffffff;
+  border-radius: var(--radius);                  /* единый радиус 8px */
+}
+
+/* Бургер-шапка: полноширинная кнопка внутри блока — визуально часть сайдбара,
+   отделена от панели тонкой линией-разделителем. */
 .sidebar-toggle {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;                                   /* 5 * 8px — кратно сетке */
-  height: 40px;
+  width: 100%;
+  height: 40px;                                  /* 5 * 8px — кратно сетке */
   padding: 0;
-  background: var(--color-primary);              /* чёрный фон (#000) */
-  color: #fff;
-  border: 1px solid var(--color-primary);        /* тонкая граница в цвет фона */
-  border-radius: var(--radius);                  /* единый радиус 8px */
+  background: transparent;                       /* фон общего чёрного блока */
+  color: #ffffff;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2); /* разделитель шапки и панели */
+  border-top-left-radius: calc(var(--radius) - 1px);  /* скопировать скругление рамки блока */
+  border-top-right-radius: calc(var(--radius) - 1px);
   cursor: pointer;
   transition: background-color 0.15s ease;
 }
@@ -434,41 +442,43 @@ code {
   line-height: 1;
 }
 
-/* Панель сайдбара: блок с чёрным фоном и белой рамкой (border-card по аналогии,
-   но на чёрном фоне граница — белая, чтобы блок читался как карточка) */
+/* Панель меню: нижняя часть единого блока. Собственная чёрная подложка с
+   белой рамкой нужна, чтобы при горизонтальном «выезде» за пределы блока
+   панель оставалась читаемой (иначе её не видно на светлом фоне страницы). */
 .sidebar-panel {
-  width: 100%;
-  box-sizing: border-box;
-  padding: var(--space-sm);                      /* 16px внутренний воздух */
-  background: var(--color-primary);              /* чёрный фон блока */
+  padding: var(--space-xs);                      /* 8px внутренний воздух до пунктов */
+  background: var(--color-primary);              /* чёрный фон панели */
   border: 1px solid #ffffff;
   border-radius: var(--radius);
-  overflow: hidden;                              /* скрывает контент при «выезде» */
 }
 
-/* Анимация «выезда/скрытия» через grid-template-rows (плавная высота 0↔auto).
+/* Анимация выезда: панель скользит ГОРИЗОНТАЛЬНО слева направо
+   (translateX: -100% → 0), а не разворачивается по высоте.
    Переходы включаются только после первого кадра (.is-ready), иначе при
-   загрузке страницы панель будет заметно разворачиваться сама. */
+   загрузке страницы панель будет заметно «выезжать» сама без действия
+   пользователя. Ширина колонки при этом не меняется (grid 208px), так что
+   контент справа не «прыгает»: панель просто прячется/появляется. */
 .sidebar.is-ready .sidebar-panel {
-  display: grid;
-  grid-template-rows: 0fr;
-  opacity: 0;
-  transform: translateX(-16px);
   transition:
-    grid-template-rows 0.25s ease,
     opacity 0.25s ease,
     transform 0.25s ease;
 }
 
-.sidebar.is-ready.open .sidebar-panel {
-  grid-template-rows: 1fr;
-  opacity: 1;
-  transform: translateX(0);
+.sidebar:not(.open) .sidebar-panel {
+  opacity: 0;
+  pointer-events: none;
 }
 
-.sidebar-panel > .sidebar-nav {
-  min-height: 0;                                 /* обязательно для анимации 0fr */
-  overflow: hidden;
+.sidebar.is-ready:not(.open) .sidebar-panel {
+  transform: translateX(-100%);                  /* спрятана слева от блока */
+}
+
+.sidebar.is-ready.open .sidebar-panel {
+  transform: translateX(0);                      /* плавно выезжает слева направо */
+}
+
+.sidebar-nav {
+  white-space: nowrap;                           /* пункты всегда в одну строку, без переносов */
 }
 
 .sidebar-list {
@@ -493,15 +503,18 @@ code {
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 
+/* Hover по требованию: БЕЛЫЙ фон подложки + чёрный текст (инверсия на
+   чёрном блоке читается лучше всего). */
 .sidebar-link:hover {
-  color: #ffffff;
-  background: var(--color-hover);                /* #333 — hover для чёрных элементов (§1) */
+  color: var(--color-primary);                   /* #000 на белом фоне */
+  background: #ffffff;
 }
 
-/* Активный пункт: белый текст + оранжевая иконка и подложка — «активные элементы» из §1 */
+/* Активный пункт: оранжевая подложка («активные элементы» из §1) + белый текст.
+   !important — чтобы активный стиль не перебивался белым hover'ом. */
 .sidebar-link.active {
-  color: #ffffff;
-  background: var(--color-accent);
+  color: #ffffff !important;
+  background: var(--color-accent) !important;
   font-weight: 600;
 }
 .sidebar-link.active .sidebar-icon { color: #ffffff; }
