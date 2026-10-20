@@ -616,29 +616,54 @@ code {
   cursor: pointer;
   z-index: 2;                                  /* поверх контента панели */
   transition: left 0.3s ease,                  /* синхронно с выездом панели */
-              background-color 0.15s ease, color 0.15s ease;
+              background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+/* Открытая панель (чёрный фон) → бургер БЕЛЫЙ, чтобы не сливался с меню */
+.sidebar-open .sidebar-burger {
+  color: #ffffff;                              /* иконка наследует через currentColor */
+  background: transparent;
+  box-shadow: none;
 }
 .sidebar:not(.sidebar-open) .sidebar-burger {
   /* Компенсация уезда панели (translateX(-100%)): offset внутри панели
      увеличен на её ширину, поэтому на экране кнопка «прилипает» к левому
      краю (16px) и остаётся единственной видимой частью сайдбара. */
   left: calc(var(--sidebar-w) + var(--space-sm));
+  /* Свёрнутая панель = кнопка лежит на светлом фоне страницы → делаем её
+     ЧЁРНОЙ (иконка наследует цвет через currentColor), с тонкой тёмной
+     обводкой для читаемости контура кнопки. */
+  color: #000000;
+  background: transparent;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
 }
-.sidebar-burger-icon { width: 16px; height: 16px; flex: none; }
+.sidebar-burger-icon { width: 16px; height: 16px; flex: none; stroke: currentColor; }
 /* Две иконки как в эталоне (panel-left-close / panel-left-open): показываем
    ту, что соответствует состоянию панели. */
 .sidebar-burger-expand  { display: none; }     /* «развернуть» — когда свёрнута */
 .sidebar-burger-collapse { display: block; }   /* «свернуть» — когда открыта */
 .sidebar:not(.sidebar-open) .sidebar-burger-expand  { display: block; }
 .sidebar:not(.sidebar-open) .sidebar-burger-collapse { display: none; }
-.sidebar-burger:hover {                        /* hover по нашему: белый фон */
+/* Hover/focus адаптированы под текущий фон: на открытой (чёрной) панели —
+   белая плашка + чёрный символ; на свёрнутой (светлый фон страницы) —
+   инверсия: чёрная плашка + белый символ. */
+.sidebar-open .sidebar-burger:hover {
   background: #ffffff;
   color: var(--color-primary);
+}
+.sidebar:not(.sidebar-open) .sidebar-burger:hover {
+  background: #000000;
+  color: #ffffff;
+  box-shadow: none;
 }
 .sidebar-burger:focus-visible {
   outline: none;
   background: #dddddd;
   color: var(--color-primary);
+}
+.sidebar:not(.sidebar-open) .sidebar-burger:focus-visible {
+  background: #000000;
+  color: #ffffff;
+  box-shadow: none;
 }
 
 /* Подложка оверлея для мобильных (lg:[--overlay-backdrop:false]) */
