@@ -1,11 +1,10 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AuthProvider, useAuth } from './auth/AuthContext'
 import ProtectedRoute from './auth/ProtectedRoute'
 import Login from './pages/Login'
 import Register from './pages/Register'
-import Dashboard from './pages/Dashboard'
-import Profile from './pages/Profile'
-import Lessons from './pages/Lessons'
+import AppLayout from './components/AppLayout'
+import AppRoutes from './components/AppRoutes'
 
 // Разворачиваем приложение только после проверки токена на сервере
 function AppContent() {
@@ -16,31 +15,19 @@ function AppContent() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      {/* Каркас (шапка + сайдбар) монтируется ОДИН раз и не пересоздаётся
+          при переходах между страницами — контент подменяется динамически
+          через <Outlet/> внутри AppLayout (см. components/AppRoutes.jsx) */}
       <Route
         path="/"
         element={
           <ProtectedRoute>
-            <Dashboard />
+            <AppLayout />
           </ProtectedRoute>
         }
-      />
-      <Route
-        path="/profile"
-        element={
-          <ProtectedRoute>
-            <Profile />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/lessons"
-        element={
-          <ProtectedRoute>
-            <Lessons />
-          </ProtectedRoute>
-        }
-      />
-      <Route path="*" element={<Navigate to="/" replace />} />
+      >
+        <Route element={<AppRoutes />} />
+      </Route>
     </Routes>
   )
 }

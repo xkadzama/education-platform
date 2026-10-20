@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Outlet } from 'react-router-dom'
 import AppHeader from './AppHeader'
 import Sidebar from './Sidebar'
 
@@ -14,7 +15,7 @@ import Sidebar from './Sidebar'
 //  • контент сдвигается через margin-inline-start = фактической ширине панели
 //    (content-push: 256px ↔ 52px ↔ 0 на мобильных);
 //  • переходы включаются только после первого кадра (ready).
-export default function AppLayout({ children }) {
+export default function AppLayout() {
   const [state, setState] = useState('open')   // 'open' | 'mini' | 'hidden'
   const [ready, setReady] = useState(false)
 
@@ -57,7 +58,7 @@ export default function AppLayout({ children }) {
 
         {/* Content (в эталоне — div с sm:hs-overlay-layout-open:ms-64) */}
         <main className="app-content">
-          <div className="container app-content-inner">{children}</div>
+          <div className="container app-content-inner"><Outlet /></div>
         </main>
       </div>
     </div>
