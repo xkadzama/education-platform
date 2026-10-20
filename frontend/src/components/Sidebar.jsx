@@ -3,7 +3,8 @@ import { NavLink } from 'react-router-dom'
 
 // Сайдбар адаптирован с эталонного HTML-сниппета (Preline-style):
 //  • fixed-панель w-64 слева, bg-sidebar + border-e;
-//  • header: бренд + бургер-переключатель панели (перенесён внутрь сайдбара);
+//  • header: бренд; бургер-переключатель внутри панели (absolute, прижат к
+//    правому краю открытой панели и остаётся виден при закрытой);
 //  • nav со скроллом и тонким скроллбаром;
 //  • пункты: flex gap-x-3.5 py-2 px-2.5 text-sm rounded-lg + hover/focus;
 //  • аккордеоны (Users/Account/Projects) с chevron-up/down и вложенными
@@ -11,9 +12,9 @@ import { NavLink } from 'react-router-dom'
 //  • бейдж «New» (ms-auto rounded-full);
 //  • desktop: -translate-x-full → translate-x-0 при сворачивании, контент
 //    сдвигается через margin-inline-start (content-push).
-// Бургер лежит в header панели и уезжает вместе с ней за левый край;
-// когда панель свёрнута, её край (с полоской-«ручкой») остаётся виден у
-// левого края экрана — по нему кликают, чтобы вернуть меню.
+// При закрытии панель уходит за левый край целиком, а бургер остаётся на
+// экране (прижат к левому краю) — это единственная видимая часть сайдбара в
+// свёрнутом состоянии; клик по нему снова раскрывает меню.
 // Цвета сниппета (bg-sidebar и т.п.) не копируем — наша палитра из tokens.css.
 // По умолчанию сайдбар открыт ([--opened:lg] → open=true на десктопе).
 
@@ -168,43 +169,46 @@ export default function Sidebar({ open, setOpen }) {
     }
   }, [open])
 
-  // Клик по видимой полоске-краю свёрнутой панели («ручке») раскрывает её.
-  // В открытом состоянии обработчик ничего не делает.
-  const onPanelClick = () => { if (!open) setOpen(true) }
-
   return (
     <div ref={panelRef} id="sidebar-panel" className={`sidebar${open ? ' sidebar-open' : ''}`}
-      role="dialog" tabIndex={-1} aria-label="Сайдбар" onClick={onPanelClick}>
+      role="dialog" tabIndex={-1} aria-label="Сайдбар">
+      {/* Бургер-переключатель: формально ВНУТРИ сайдбара, но позиционируется
+          абсолютно (fixed-контекст панели) и при закрытии удерживается в
+          зоне видимости экрана (left: calc(100vw - w - 12px)) — то есть
+          после сворачивания на экране остаётся видна ТОЛЬКО эта кнопка,
+          повторный клик по ней снова открывает панель. */}
+      <button
+        type="button"
+        className="sidebar-burger"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-controls="sidebar-panel"
+        aria-label={open ? 'Свернуть меню' : 'Открыть меню'}
+        onClick={() => setOpen((v) => !v)}
+      >
+        {/* icon «развернуть панель» — показываем, когда панель свёрнута */}
+        <svg className="sidebar-burger-icon sidebar-burger-expand" xmlns="http://www.w3.org/2000/svg"
+          width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <rect width="18" height="18" x="3" y="3" rx="2" />
+          <path d="M9 3v18" />
+          <path d="m16 15-3-3 3-3" />
+        </svg>
+        {/* icon «свернуть панель» — показываем, когда панель открыта */}
+        <svg className="sidebar-burger-icon sidebar-burger-collapse" xmlns="http://www.w3.org/2000/svg"
+          width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <rect width="18" height="18" x="3" y="3" rx="2" />
+          <path d="M9 3v18" />
+          <path d="m15 10-3 3 3 3" />
+        </svg>
+      </button>
+
       <div className="sidebar-inner">
-        {/* Header: бренд + бургер-переключатель панели (перенесён внутрь сайдбара) */}
+        {/* Header: бренд (бургер вынесен из header — он теперь «пришит»
+            к правому краю панели и всегда виден) */}
         <header className="sidebar-header">
           <a className="sidebar-brand" href="/" aria-label="Xkadzama — на главную">Xkadzama</a>
-          <button
-            type="button"
-            className="sidebar-burger"
-            aria-haspopup="dialog"
-            aria-expanded={open}
-            aria-controls="sidebar-panel"
-            aria-label={open ? 'Свернуть меню' : 'Открыть меню'}
-            onClick={() => setOpen((v) => !v)}
-          >
-            {/* icon «свернуть панель» — показываем, когда панель открыта */}
-            <svg className="sidebar-burger-icon sidebar-burger-open" xmlns="http://www.w3.org/2000/svg"
-              width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <rect width="18" height="18" x="3" y="3" rx="2" />
-              <path d="M9 3v18" />
-              <path d="m15 10-3 3 3 3" />
-            </svg>
-            {/* icon «открыть панель» — показываем, когда панель свёрнута */}
-            <svg className="sidebar-burger-icon sidebar-burger-close" xmlns="http://www.w3.org/2000/svg"
-              width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <rect width="18" height="18" x="3" y="3" rx="2" />
-              <path d="M9 3v18" />
-              <path d="m16 15-3-3 3-3" />
-            </svg>
-          </button>
         </header>
 
         {/* Body: навигация со скроллом */}
