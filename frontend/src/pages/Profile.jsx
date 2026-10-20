@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
@@ -7,12 +7,29 @@ import { Avatar } from '../components/AvatarButton'
 // «Мой профиль»: показываем только те данные, что реально есть в модели User / ответе /auth/me
 export default function Profile() {
   const { user: rawUser, updateUser } = useAuth()
-  // Защита от пустых полей из БД (например, при регистрации до появления
-  // first_name/last_name) — иначе страница могла падать на undefined.
-  const user = { first_name: '', last_name: '', email: '', role: '', ...rawUser }
   const fileInputRef = useRef(null)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
+  // Если пользователя в контексте нет или у него нет email (например, протухший
+  // токен) — перезапрашиваем /auth/me напрямую, чтобы страница не была пустой.
+  const [refetched, setRefetched] = useState(null)
+  const [fetchState, setFetchState] = useState('idle') // idle | loading | error
+
+  useEffect(() => {
+    if (rawUser?.email) return // данные уже есть — повторный запрос не нужен
+    setFetchState('loading')
+    api
+      .get('/auth/me')
+      .then((res) => {
+        setRefetched(res.data)
+        updateUser(res.data) // синхронизируем контекст (шапка/аватар тоже обновятся)
+        setFetchState('idle')
+      })
+      .catch(() => setFetchState('error'))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const displayUser = { first_name: '', last_name: '', email: '', role: '', ...(rawUser || refetched) }
 
   // Загрузка фото: POST /auth/avatar (multipart/form-data, поле `file`)
   const handleFileChange = async (e) => {
@@ -41,10 +58,10 @@ export default function Profile() {
 
   // Ровно те поля, которые возвращает бэкенд (UserResponse)
   const rows = [
-    { label: 'Имя', value: user.first_name },
-    { label: 'Фамилия', value: user.last_name },
-    { label: 'Email', value: user.email },
-    { label: 'Роль', value: user.role },
+    { label: 'Имя', value: displayUser.first_name },
+    { label: 'Фамилия', value: displayUser.last_name },
+    { label: 'Email', value: displayUser.email },
+    { label: 'Роль', value: displayUser.role },
   ]
 
   return (
@@ -55,13 +72,23 @@ export default function Profile() {
 
         <h1 className="page-title">Мой профиль</h1>
 
+        {fetchState === 'loading' && (
+          <p className="text-secondary" role="status">Загружаем данные профиля…</p>
+        )}
+        {fetchState === 'error' && (
+          <p className="field-error" role="alert">
+            Не удалось получить данные из БД: сервер вернул ошибку. Проверьте, что backend
+            запущен на :8000 и токен валиден, затем обновите страницу.
+          </p>
+        )}
+
         <section className="card card-wide">
           {/* Аватар: реальное фото, если загружено, иначе инициалы */}
           <div className="profile-header">
-            <Avatar user={user} size="lg" />
+            <Avatar user={displayUser} size="lg" />
             <div>
-              <h2>{user.first_name} {user.last_name}</h2>
-              <p className="text-secondary">{user.email}</p>
+              <h2>{displayUser.first_name} {displayUser.last_name}</h2>
+              <p className="text-secondary">{displayUser.email}</p>
 
               {/* Кнопка загрузки — скрытый input[type=file] в дизайн-стиле Secondary Button */}
               <input
@@ -77,7 +104,7 @@ export default function Profile() {
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
               >
-                {uploading ? 'Загрузка…' : user.avatar_url ? 'Сменить фото' : 'Загрузить фото'}
+                {uploading ? 'Загрузка…' : displayUser.avatar_url ? 'Сменить фото' : 'Загрузить фото'}
               </button>
               <p className="form-hint">JPEG, PNG или WebP, до 5 МБ</p>
               {error && <p className="field-error">{error}</p>}
