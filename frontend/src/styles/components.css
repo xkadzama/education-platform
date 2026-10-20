@@ -202,3 +202,96 @@ code {
   border: none;
   margin: 0;
 }
+
+/* ---------- App header + Avatar (§4 Cards: flat, тонкая граница) ---------- */
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--color-background);
+  border-bottom: var(--border-input);   /* 1px solid #E5E5E5 */
+}
+
+.app-header-inner {
+  height: 64px;                          /* кратно базовой единице 8px */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Маленькое окошко справа сверху: аватар + имя, клик → /profile */
+.avatar-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);                  /* 8px */
+  padding: 6px 12px 6px 6px;
+  background: var(--color-background);
+  border: var(--border-input);
+  border-radius: var(--radius);          /* 8px */
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: var(--text-caption);        /* 14px */
+  color: var(--color-primary);
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.avatar-button:hover {
+  border-color: var(--color-primary);
+  background: var(--color-hover);
+  color: var(--color-background);
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: var(--color-background);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: var(--text-caption);
+  flex-shrink: 0;
+}
+
+.avatar-lg {
+  width: 64px;
+  height: 64px;
+  font-size: var(--text-h3);
+}
+
+.avatar-name { white-space: nowrap; }
+
+/* ---------- Страницы (не авторизационные) ---------- */
+
+.page {
+  padding: var(--space-md) 0 var(--space-xl);
+}
+
+.page-narrow {
+  max-width: 720px;                      /* комфортная ширина для профиля */
+}
+
+.page-title {
+  font-size: var(--text-h2);             /* H2 секции: 32px */
+  margin-bottom: var(--space-xs);
+}
+
+.card-wide {
+  max-width: none;
+  margin-top: var(--space-md);           /* 32px между блоками */
+  gap: var(--space-sm);
+}
+
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.dashboard-actions {
+  display: flex;
+  gap: var(--space-sm);
+}
+.dashboard-actions .btn { flex: 1; }
