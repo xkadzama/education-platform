@@ -34,6 +34,7 @@ class UserResponse(BaseModel):
 	first_name: str
 	last_name: str
 	role: str
+	avatar_url: Optional[str] = None  # null, пока фото не загружено
 	is_active: bool = True
 
 	# Необходимо для преобразования SQLAlchemy модели в Pydantic

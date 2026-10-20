@@ -54,8 +54,14 @@ export function AuthProvider({ children }) {
     clearTokens()
   }, [])
 
+  // Обновляет пользователя в контексте (например, после загрузки аватара),
+  // чтобы фото сразу появилось и в шапке, и в профиле
+  const updateUser = useCallback((patch) => {
+    setUser((prev) => (prev ? { ...prev, ...patch } : prev))
+  }, [])
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   )
