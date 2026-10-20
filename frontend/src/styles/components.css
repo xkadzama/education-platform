@@ -399,10 +399,76 @@ code {
   align-items: start;
 }
 
+/* Каркас колонки: бургер + панель. Сайдбар — самостоятельный «блок»:
+   чёрный фон, белая рамка-обводка по стилям дизайн-системы (1px, --radius). */
 .sidebar {
   position: sticky;
   top: calc(64px + var(--space-sm));             /* под шапкой (64px) + 16px воздуха */
-  padding-top: var(--space-md);                  /* 32px от верны области контента */
+  padding-top: var(--space-md);                  /* 32px от верха области контента */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-xs);                          /* 8px между бургером и панелью */
+}
+
+/* Бургер: компактная чёрная кнопка в стиле кнопок дизайн-системы (§4) */
+.sidebar-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;                                   /* 5 * 8px — кратно сетке */
+  height: 40px;
+  padding: 0;
+  background: var(--color-primary);              /* чёрный фон (#000) */
+  color: #fff;
+  border: 1px solid var(--color-primary);        /* тонкая граница в цвет фона */
+  border-radius: var(--radius);                  /* единый радиус 8px */
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.sidebar-toggle:hover { background: var(--color-hover); }
+
+.sidebar-toggle-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+/* Панель сайдбара: блок с чёрным фоном и белой рамкой (border-card по аналогии,
+   но на чёрном фоне граница — белая, чтобы блок читался как карточка) */
+.sidebar-panel {
+  width: 100%;
+  box-sizing: border-box;
+  padding: var(--space-sm);                      /* 16px внутренний воздух */
+  background: var(--color-primary);              /* чёрный фон блока */
+  border: 1px solid #ffffff;
+  border-radius: var(--radius);
+  overflow: hidden;                              /* скрывает контент при «выезде» */
+}
+
+/* Анимация «выезда/скрытия» через grid-template-rows (плавная высота 0↔auto).
+   Переходы включаются только после первого кадра (.is-ready), иначе при
+   загрузке страницы панель будет заметно разворачиваться сама. */
+.sidebar.is-ready .sidebar-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transform: translateX(-16px);
+  transition:
+    grid-template-rows 0.25s ease,
+    opacity 0.25s ease,
+    transform 0.25s ease;
+}
+
+.sidebar.is-ready.open .sidebar-panel {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.sidebar-panel > .sidebar-nav {
+  min-height: 0;                                 /* обязательно для анимации 0fr */
+  overflow: hidden;
 }
 
 .sidebar-list {
@@ -422,28 +488,32 @@ code {
   border-radius: var(--radius);                  /* единый радиус 8px */
   font-size: var(--text-body);
   font-weight: 500;
-  color: var(--color-secondary-text);
+  color: rgba(255, 255, 255, 0.75);              /* белый вторичный на чёрном блоке */
   text-decoration: none;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .sidebar-link:hover {
-  color: var(--color-primary);
-  background: var(--color-border);               /* лёгкая подсветка без рамки (flat) */
+  color: #ffffff;
+  background: var(--color-hover);                /* #333 — hover для чёрных элементов (§1) */
 }
 
-/* Активный пункт: чёрный текст + оранжевая иконка — «активные элементы» из §1 */
+/* Активный пункт: белый текст + оранжевая иконка и подложка — «активные элементы» из §1 */
 .sidebar-link.active {
-  color: var(--color-primary);
-  background: var(--color-border);
+  color: #ffffff;
+  background: var(--color-accent);
   font-weight: 600;
 }
-.sidebar-link.active .sidebar-icon { color: var(--color-accent); }
+.sidebar-link.active .sidebar-icon { color: #ffffff; }
 
 .sidebar-icon {
   width: 20px;
   text-align: center;
   flex-shrink: 0;
+}
+
+.sidebar-label {
+  white-space: nowrap;
 }
 
 .app-content {
@@ -533,7 +603,7 @@ code {
   color: var(--color-secondary-text);            /* прочитанное визуально «тише» */
 }
 
-/* Мобильные: сайдбар схлопывается в горизонтальное меню */
+/* Мобильные: сайдбар остаётся блоком с бургером, но панель — во всю ширину */
 @media (max-width: 768px) {
   .app-body {
     grid-template-columns: 1fr;
@@ -542,7 +612,11 @@ code {
     position: static;
     padding-top: var(--space-sm);
   }
-  .sidebar-list {
-    flex-direction: row;
+}
+
+/* Уважение системной настройки «меньше движения» */
+@media (prefers-reduced-motion: reduce) {
+  .sidebar.is-ready .sidebar-panel {
+    transition: none;
   }
 }
