@@ -72,8 +72,6 @@ export default function AvatarButton() {
         title="Меню профиля"
       >
         <Avatar user={user} />
-        <span className="avatar-name">{user.first_name}</span>
-        <span className={`avatar-caret${open ? ' open' : ''}`} aria-hidden="true">▾</span>
       </button>
 
       {open && (

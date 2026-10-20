@@ -241,8 +241,8 @@ code {
   display: inline-flex;
   align-items: center;
   gap: var(--space-xs);                  /* 8px */
-  padding: 6px 12px 6px 6px;
-  background: transparent;               /* без обводки и фона — только аватар + имя */
+  padding: 6px;                          /* только аватар — имя и карет убраны, отступ симметричный */
+  background: transparent;               /* без обводки и фона — только аватар */
   border: none;
   border-radius: var(--radius);
   cursor: pointer;
