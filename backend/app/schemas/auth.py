@@ -38,3 +38,15 @@ class UserResponse(BaseModel):
 
 	# Необходимо для преобразования SQLAlchemy модели в Pydantic
 	model_config = {"from_attributes": True}
+
+
+# 3. Токен-пара, которую возвращают /auth/login и /auth/refresh
+class TokenResponse(BaseModel):
+	access_token: str
+	refresh_token: str
+	token_type: str = 'bearer'
+	expires_in: int  # время жизни access-токена в секундах
+
+
+class RefreshRequest(BaseModel):
+	refresh_token: str = Field(..., description='Refresh-токен из ответа /auth/login')
