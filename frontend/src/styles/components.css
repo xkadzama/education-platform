@@ -401,7 +401,6 @@ code {
 
 :root {
   --sidebar-w: 256px;                          /* w-64 из эталона */
-  --sidebar-handle: 28px;                      /* видимый край свернутой панели */
   --header-h: 64px;                            /* высота AppHeader */
 }
 
@@ -410,10 +409,11 @@ code {
   min-height: calc(100vh - var(--header-h));
 }
 
-/* --- Панель сайдбара: fixed слева, уезжает за левый край (translateX).
-       Бургер живёт внутри панели (header) и уезжает вместе с ней; чтобы
-       свернутую панель можно было вернуть кликом, её правый край остаётся
-       виден у левого края экрана (полоска-«ручка», --sidebar-handle). --- */
+/* --- Панель сайдбара: fixed слева, при закрытии ПОЛНОСТЬЮ уезжает за
+       левый край (translateX(-100%)). Бургер живёт внутри панели, но
+       позиционируется абсолютно и «пришит» к её правому краю; при закрытии
+       его offset компенсирует уезд панели, поэтому на экране остаётся
+       видна ТОЛЬКО кнопка — клик по ней снова открывает меню. --- */
 .sidebar {
   position: fixed;
   top: var(--header-h);                        /* панель — ПОД шапкой */
@@ -428,23 +428,8 @@ code {
   transition: transform 0.3s ease;
 }
 .sidebar:not(.sidebar-open) {
-  transform: translateX(calc(-1 * (var(--sidebar-w) - var(--sidebar-handle))));
-  cursor: pointer;                             /* вся видимая полоска — кнопка «открыть» */
+  transform: translateX(-100%);                /* панель целиком за краем */
 }
-
-/* «Ручка» свернутой панели: светлая полоска на её правом краю */
-.sidebar::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  right: 0;                                    /* край панели = видимая полоска */
-  width: var(--sidebar-handle);
-  background: rgba(255, 255, 255, 0.07);
-  border-left: 1px solid rgba(255, 255, 255, 0.18);
-  pointer-events: none;
-}
-.sidebar-open::before { display: none; }       /* открыта — ручка не нужна */
 
 .sidebar-inner {
   position: relative;
@@ -454,7 +439,7 @@ code {
   max-height: 100%;
 }
 
-/* Header панели: бренд + бургер-переключатель (перенесён внутрь сайдбара) */
+/* Header панели: бренд (бургер больше не в потоке — см. .sidebar-burger) */
 .sidebar-header {
   padding: var(--space-sm);                    /* p-4 */
   display: flex;
@@ -606,9 +591,17 @@ code {
 
 .app-content-inner { padding-top: var(--space-md); }  /* воздух сверху страницы */
 
-/* Бургер (Navigation Toggle): круглая кнопка size-8 ВНУТРИ header панели.
-   Панель чёрная — hover/focus адаптированы под тёмный фон (белая шайба). */
+/* Бургер-переключатель (Navigation Toggle): круглая кнопка size-8 внутри
+   панели, но ВНЕ потока (absolute). При открытой панели сидит у её правого
+   края; при закрытии offset = ширина панели + отступ от правого края экрана
+   компенсирует translateX(-100%), поэтому КНОПКА ОСТАЁТСЯ ВИДНОЙ на экране —
+   после сворачивания сайдбара из всего меню виден только бургер, и клик по
+   нему снова раскрывает панель. Панель чёрная — hover/focus адаптированы
+   под тёмный фон (белая шайба). */
 .sidebar-burger {
+  position: absolute;
+  top: var(--space-sm);                        /* на уровне header-контура */
+  left: calc(100% - 32px - var(--space-xs));   /* в потоке панели: правый край */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -621,18 +614,24 @@ code {
   border-radius: 50%;                          /* rounded-full */
   color: rgba(255, 255, 255, 0.85);            /* текст пункта на чёрном */
   cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  z-index: 2;                                  /* поверх контента панели */
+  transition: left 0.3s ease,                  /* синхронно с выездом панели */
+              background-color 0.15s ease, color 0.15s ease;
+}
+.sidebar:not(.sidebar-open) .sidebar-burger {
+  /* Компенсация уезда панели (translateX(-100%)): offset внутри панели
+     увеличен на её ширину, поэтому на экране кнопка «прилипает» к левому
+     краю (16px) и остаётся единственной видимой частью сайдбара. */
+  left: calc(var(--sidebar-w) + var(--space-sm));
 }
 .sidebar-burger-icon { width: 16px; height: 16px; flex: none; }
-/* Две иконки как в эталоне (sm:hidden / hidden sm:block): показываем ту,
-   что соответствует состоянию панели. Внутри .sidebar-open находится только
-   открытая панель (свёрнутая уезжает за край), поэтому переключение по
-   классу панели работает корректно и на «ручке» тоже. */
-.sidebar-burger-open  { display: none; }       /* «открыть» — когда свёрнута */
-.sidebar-burger-close { display: block; }      /* «свернуть» — когда открыта */
-.sidebar:not(.sidebar-open) .sidebar-burger-open  { display: block; }
-.sidebar:not(.sidebar-open) .sidebar-burger-close { display: none; }
-.sidebar-burger:hover {                        /* hover поourному: белый фон */
+/* Две иконки как в эталоне (panel-left-close / panel-left-open): показываем
+   ту, что соответствует состоянию панели. */
+.sidebar-burger-expand  { display: none; }     /* «развернуть» — когда свёрнута */
+.sidebar-burger-collapse { display: block; }   /* «свернуть» — когда открыта */
+.sidebar:not(.sidebar-open) .sidebar-burger-expand  { display: block; }
+.sidebar:not(.sidebar-open) .sidebar-burger-collapse { display: none; }
+.sidebar-burger:hover {                        /* hover по нашему: белый фон */
   background: #ffffff;
   color: var(--color-primary);
 }
@@ -663,12 +662,11 @@ code {
 
 /* Мобильные (<1024px, аналог lg-брейкпоинта эталона): панель — overlay поверх
    контента (полностью уезжает за край, контент не сдвигается);
-   --is-layout-affect только на десктопе. Открытие/закрытие — бургер в header
-   панели (он виден, пока панель открыта) или Escape. */
+   --is-layout-affect только на десктопе. Бургер остаётся видным и в закрытом
+   состоянии (прижат к левому краю экрана) — им и открываем/закрываем панель;
+   также панель закрывается по Escape. */
 @media (max-width: 1024px) {
   .app-body-open .app-content { margin-inline-start: 0; }
-  .sidebar:not(.sidebar-open) { transform: translateX(-100%); }
-  .sidebar::before { display: none; }          /* «ручка» на мобильных не нужна */
 }
 
 /* Переходы включаем только после первого кадра (.is-ready на app-shell),
@@ -678,7 +676,8 @@ code {
   transition: transform 0.3s ease, margin-inline-start 0.3s ease;
 }
 .app-shell:not(.is-ready) .sidebar,
-.app-shell:not(.is-ready) .app-content {
+.app-shell:not(.is-ready) .app-content,
+.app-shell:not(.is-ready) .sidebar-burger {
   transition: none;
 }
 
@@ -686,6 +685,7 @@ code {
 @media (prefers-reduced-motion: reduce) {
   .sidebar,
   .app-content,
+  .sidebar-burger,
   .app-shell.is-ready .sidebar,
   .app-shell.is-ready .app-content,
   .sidebar::after {

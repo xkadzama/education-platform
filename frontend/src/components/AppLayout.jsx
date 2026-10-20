@@ -5,7 +5,8 @@ import Sidebar from './Sidebar'
 // Каркас защищённых страниц по эталонному сниппету (Preline hs-overlay):
 //  • сайдбар — fixed-панель слева (256px), выезжает/уезжает по translateX;
 //  • контент сдвигается через margin-inline-start (content-push);
-//  • бургер живёт ВНУТРИ сайдбара (header панели) и сворачивает/разворачивает её;
+//  • бургер живёт ВНУТРИ сайдбара (absolute у правого края панели) и
+//    остаётся виден даже при свёрнутой панели — им открываем/закрываем меню;
 //  • по умолчанию панель открыта ([--opened:lg]).
 export default function AppLayout({ children }) {
   const [open, setOpen] = useState(true)
