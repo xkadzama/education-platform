@@ -214,10 +214,26 @@ code {
 }
 
 .app-header-inner {
-  height: 64px;                          /* кратно базовой единице 8px */
+  height: var(--header-h);               /* кратно базовой единице 8px */
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding-inline-start: calc(var(--sidebar-w) + var(--space-md));
+  /* сайдбар теперь заполняет вверх до края экрана (top:0, z-20) и перекрывает
+     левую часть шапки — сдвигаем бренд вправо, чтобы он не прятался под меню;
+     transition синхронно с content-push (0.3s) */
+  transition: padding-inline-start 0.3s ease;
+}
+/* Свёрнутый сайдбар → шапка снова занимает всю ширину */
+.app-shell:not(.sidebar-open) .app-header-inner {
+  padding-inline-start: var(--space-md); /* обычный отступ .container */
+}
+@media (max-width: 1024px) {
+  /* на мобильных панель — overlay поверх контента, шапку не сдвигаем */
+  .app-header-inner,
+  .app-shell:not(.sidebar-open) .app-header-inner {
+    padding-inline-start: var(--space-md);
+  }
 }
 
 /* Аватарка справа сверху: фото/инициалы + имя без рамки (flat design) */
@@ -393,15 +409,19 @@ code {
 /* ---------- App shell: сайдбар (fixed-панель) + контент (content-push) ----------
    Адаптация эталонного Preline-сниппета (#hs-sidebar-content-push):
     • fixed-панель 256px (w-64) слева, border-e, bg-sidebar;
+    • панель заполняет ВВЕРХ до самого края страницы (top: 0), поверх шапки;
     • desktop: -translate-x-full ↔ translate-x-0 ([--opened:lg] → открыто);
     • контент сдвигается margin-inline-start (sm:ms-64), transition-all 300ms;
-    • бургер — круглая кнопка size-8 в контенте (Navigation Toggle);
+    • бургер — круглая кнопка size-8 внутри панели (absolute у правого края);
     • на мобильных панель — overlay с затемнением (--overlay-backdrop).
    Цвета сниппета не копируем — наша палитра tokens.css (§1). */
 
 :root {
   --sidebar-w: 256px;                          /* w-64 из эталона */
   --header-h: 64px;                            /* высота AppHeader */
+  --burger-x: 216px;                           /* левый край бургера в свёрнутой
+       панели: 256(ширина) - 32(кнопка) - 8(отступ) = 216 — после уезда панели
+       на -100% кнопка «прилипает» к левому краю экрана */
 }
 
 .app-body {
@@ -416,10 +436,10 @@ code {
        видна ТОЛЬКО кнопка — клик по ней снова открывает меню. --- */
 .sidebar {
   position: fixed;
-  top: var(--header-h);                        /* панель — ПОД шапкой */
+  top: 0;                                      /* панель — от САМОГО верха страницы */
   inset-inline-start: 0;
   bottom: 0;
-  z-index: 5;                                  /* ниже sticky-шапки (z-10) */
+  z-index: 20;                                 /* поверх sticky-шапки (z-10), т.к. заполняет вверх */
   width: var(--sidebar-w);
   background: var(--color-primary);            /* bg-sidebar → наш чёрный */
   border-inline-end: 1px solid rgba(255, 255, 255, 0.15); /* border-e */
@@ -600,8 +620,11 @@ code {
    под тёмный фон (белая шайба). */
 .sidebar-burger {
   position: absolute;
-  top: var(--space-sm);                        /* на уровне header-контура */
-  left: calc(100% - 32px - var(--space-xs));   /* в потоке панели: правый край */
+  top: 16px;                                   /* по центру строки шапки (64px): (64-32)/2 */
+  left: var(--burger-x);                       /* правый край открытой панели:
+       256 - 32(size-8) - 8(p-4) = 216 — фикс. значение вместо calc(100%),
+       т.к. при закрытии панель скрыта (visibility:hidden) и её ширина в
+       calc() обнулилась бы — верстка кнопки «съехала» бы */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -614,7 +637,9 @@ code {
   border-radius: 50%;                          /* rounded-full */
   color: rgba(255, 255, 255, 0.85);            /* текст пункта на чёрном */
   cursor: pointer;
-  z-index: 2;                                  /* поверх контента панели */
+  z-index: 30;                                 /* выше шапки (10) и панели (20):
+       при закрытой visibility:hidden панели кнопка обязана оставаться
+       кликабельной поверх sticky-шапки */
   transition: left 0.3s ease,                  /* синхронно с выездом панели */
               background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
@@ -627,8 +652,8 @@ code {
 .sidebar:not(.sidebar-open) .sidebar-burger {
   /* Компенсация уезда панели (translateX(-100%)): offset внутри панели
      увеличен на её ширину, поэтому на экране кнопка «прилипает» к левому
-     краю (16px) и остаётся единственной видимой частью сайдбара. */
-  left: calc(var(--sidebar-w) + var(--space-sm));
+     краю и остаётся единственной видимой частью сайдбара. */
+  left: calc(var(--burger-x) + var(--sidebar-w));
   /* Свёрнутая панель = кнопка лежит на светлом фоне страницы → делаем её
      ЧЁРНОЙ (иконка наследует цвет через currentColor), с тонкой тёмной
      обводкой для читаемости контура кнопки. */
@@ -702,7 +727,8 @@ code {
 }
 .app-shell:not(.is-ready) .sidebar,
 .app-shell:not(.is-ready) .app-content,
-.app-shell:not(.is-ready) .sidebar-burger {
+.app-shell:not(.is-ready) .sidebar-burger,
+.app-shell:not(.is-ready) .app-header-inner {
   transition: none;
 }
 
@@ -711,6 +737,7 @@ code {
   .sidebar,
   .app-content,
   .sidebar-burger,
+  .app-header-inner,
   .app-shell.is-ready .sidebar,
   .app-shell.is-ready .app-content,
   .sidebar::after {
