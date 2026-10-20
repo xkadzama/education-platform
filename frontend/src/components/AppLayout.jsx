@@ -3,10 +3,12 @@ import AppHeader from './AppHeader'
 import Sidebar from './Sidebar'
 
 // Каркас защищённых страниц по эталонному сниппету (Preline hs-overlay):
-//  • сайдбар — fixed-панель слева (256px), выезжает/уезжает по translateX;
-//  • контент сдвигается через margin-inline-start (content-push);
-//  • бургер живёт ВНУТРИ сайдбара (absolute у правого края панели) и
-//    остаётся виден даже при свёрнутой панели — им открываем/закрываем меню;
+//  • сайдбар — fixed-панель слева: открыта 256px, свёрнута — видимый рельс
+//    56px (анимация ширины через @property --sb-width, панель не уезжает за
+//    экран — в рельсе остаются бургер и иконки пунктов);
+//  • контент сдвигается через margin-inline-start = фактической ширине
+//    панели (content-push);
+//  • бургер живёт ВНУТРИ header панели на одном уровне с брендом;
 //  • по умолчанию панель открыта ([--opened:lg]).
 export default function AppLayout({ children }) {
   const [open, setOpen] = useState(true)
@@ -22,7 +24,12 @@ export default function AppLayout({ children }) {
   return (
     <div className={`app-shell${ready ? ' is-ready' : ''}${open ? ' sidebar-open' : ''}`}>
       <AppHeader />
-      <div className={`app-body${open ? ' app-body-open' : ''}`}>
+      {/* --sb-live дублирует анимируемую ширину панели для сабтрея контента
+          (transition маргинала синхронен с width-анимацией .sidebar) */}
+      <div
+        className={`app-body${open ? ' app-body-open' : ''}`}
+        style={{ '--sb-live': open ? 'var(--sidebar-w)' : 'var(--sidebar-w-rail)' }}
+      >
         <Sidebar open={open} setOpen={setOpen} />
 
         {/* Content (в эталоне — div с ms-64). Бургер перенесён внутрь
