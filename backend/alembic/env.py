@@ -8,11 +8,16 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 
 from app.core.database import Base
+from app.core.config import DATABASE_URL
 from app import models
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+
+# Единый источник URL: env / backend/.env через app.core.config.
+# Значение из alembic.ini используется только как fallback для offline-режима.
+config.set_main_option('sqlalchemy.url', DATABASE_URL.replace('%', '%%'))
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.

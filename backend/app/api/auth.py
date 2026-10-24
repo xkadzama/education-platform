@@ -1,7 +1,5 @@
 from datetime import timedelta
-import io
 import secrets
-from pathlib import Path
 
 import jwt
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
@@ -16,6 +14,7 @@ from app.schemas.auth import (  # type: ignore
 	TokenResponse,
 	RefreshRequest,
 )
+from app.core.config import AVATARS_DIR, MAX_AVATAR_SIZE
 from app.core.dependencies import get_db, get_current_user
 from app.core.security import (
 	get_password_hash,
@@ -25,6 +24,7 @@ from app.core.security import (
 	decode_token,
 	ACCESS_TOKEN_EXPIRE_MINUTES,
 )
+from app.services.avatar import AvatarProcessingError, process_avatar
 
 
 router = APIRouter(
@@ -110,8 +110,7 @@ async def me(current_user: User = Depends(get_current_user)):
 
 
 # --- Загрузка фото профиля ----------------------------------------------------
-ALLOWED_AVATAR_TYPES = {'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp'}
-MAX_AVATAR_SIZE = 5 * 1024 * 1024  # 5 МБ
+ALLOWED_AVATAR_TYPES = {'image/jpeg', 'image/png', 'image/webp'}
 
 @router.post('/avatar', response_model=UserResponse)
 async def upload_avatar(
@@ -119,14 +118,14 @@ async def upload_avatar(
 	current_user: User = Depends(get_current_user),
 	session: AsyncSession = Depends(get_db),
 ):
-	"""Загружает фото профиля (multipart/form-data, поле `file`).
+	"""Загружает и обрабатывает фото профиля (multipart/form-data, поле `file`).
 
-	Принимает JPEG/PNG/WebP до 5 МБ, сохраняет в uploads/avatars и обновляет
-	поле avatar_url у текущего пользователя. Возвращает обновлённый профиль.
+	Принимает JPEG/PNG/WebP до 5 МБ, декодирует изображение, поворачивает по
+	EXIF, уменьшает до 512×512 (без апскейла) и сохраняет сжатый WebP в
+	uploads/avatars. Возвращает обновлённый профиль.
 	"""
 	content_type = (file.content_type or '').lower()
-	ext = ALLOWED_AVATAR_TYPES.get(content_type)
-	if ext is None:
+	if content_type not in ALLOWED_AVATAR_TYPES:
 		raise HTTPException(status_code=400, detail='Allowed formats: JPEG, PNG, WebP')
 
 	data = await file.read()
@@ -135,25 +134,26 @@ async def upload_avatar(
 	if not data:
 		raise HTTPException(status_code=400, detail='Empty file')
 
-	# Проверяем подпись файла реальным декодером — content_type из браузера
-	# подделать проще простого.
+	# Проверяем и перекодируем реальным декодером: content_type из браузера
+	# подделать просто, а хранить многомегабайтные оригиналы не нужно.
 	try:
-		from PIL import Image
-		Image.open(io.BytesIO(data)).verify()
-	except Exception:
-		raise HTTPException(status_code=400, detail='File is not a valid image')
+		processed = process_avatar(data)
+	except AvatarProcessingError:
+		raise HTTPException(
+			status_code=400,
+			detail='File is not a valid JPEG, PNG or WebP image',
+		)
 
 	# Имя файла генерируем сами: id пользователя + случайный hex (никакого пути
 	# из запроса — защита от path traversal).
-	filename = f'{current_user.id}_{secrets.token_hex(6)}{ext}'
-	upload_dir = Path('uploads') / 'avatars'
-	upload_dir.mkdir(parents=True, exist_ok=True)
-	(upload_dir / filename).write_bytes(data)
+	filename = f'{current_user.id}_{secrets.token_hex(6)}.webp'
+	AVATARS_DIR.mkdir(parents=True, exist_ok=True)
+	(AVATARS_DIR / filename).write_bytes(processed)
 
 	# Удаляем старое фото, если оно было загружено через этот же механизм
 	old_url = current_user.avatar_url or ''
 	if old_url.startswith('/uploads/avatars/'):
-		old_path = Path('.' + old_url)
+		old_path = AVATARS_DIR / old_url.rsplit('/', 1)[-1]
 		if old_path.is_file():
 			old_path.unlink(missing_ok=True)
 

@@ -1,19 +1,20 @@
 from datetime import datetime, timedelta, timezone
-import os
-import secrets
 
 import jwt
 from pwdlib import PasswordHash
 
+from app.core.config import (
+	ACCESS_TOKEN_EXPIRE_MINUTES,
+	JWT_ALGORITHM,
+	JWT_SECRET_KEY,
+	REFRESH_TOKEN_EXPIRE_DAYS,
+)
+
 
 argon2 = PasswordHash.recommended()
 
-# Настройки JWT лучше брать из переменных окружения (.env),
-# а не хранить секреты в коде.
-JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', secrets.token_hex(32))  # в проде задайте через env!
-JWT_ALGORITHM = 'HS256'
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv('ACCESS_TOKEN_EXPIRE_MINUTES', '15'))     # короткоживущий access-токен
-REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv('REFRESH_TOKEN_EXPIRE_DAYS', '7'))          # долгоживущий refresh-токен
+# Секрет и сроки жизни токенов задаются через env / backend/.env
+# (см. app/core/config.py). Дефолтный секрет годится только для разработки.
 
 
 def get_password_hash(password: str) -> str:
