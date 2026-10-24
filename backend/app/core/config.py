@@ -41,6 +41,15 @@ if APP_ENV == 'production' and JWT_SECRET_KEY.startswith('dev-insecure-'):
 	raise RuntimeError('JWT_SECRET_KEY must be set in production (see backend/.env.example)')
 
 JWT_ALGORITHM = 'HS256'
+
+# Bootstrap первого суперпользователя. Используется ТОЛЬКО если таблица users
+# пуста (первый запуск на чистой БД). После создания строки можно удалить из
+# backend/.env — пользователь останется в БД.
+SUPERADMIN_EMAIL = os.getenv('SUPERADMIN_EMAIL', '').strip().lower()
+SUPERADMIN_PASSWORD = os.getenv('SUPERADMIN_PASSWORD', '')
+SUPERADMIN_FIRST_NAME = os.getenv('SUPERADMIN_FIRST_NAME', 'Super').strip() or 'Super'
+SUPERADMIN_LAST_NAME = os.getenv('SUPERADMIN_LAST_NAME', 'Admin').strip() or 'Admin'
+
 ACCESS_TOKEN_EXPIRE_MINUTES = _env_int('ACCESS_TOKEN_EXPIRE_MINUTES', 15)
 REFRESH_TOKEN_EXPIRE_DAYS = _env_int('REFRESH_TOKEN_EXPIRE_DAYS', 7)
 

@@ -68,6 +68,25 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
+  // Вход в админку: отдельный endpoint, который пускает только superuser
+  const adminLogin = useCallback(async (email, password) => {
+    const form = new FormData()
+    form.append('username', email.trim())
+    form.append('password', password)
+
+    const res = await api.post('/auth/admin-login', form)
+    saveTokens(res.data)
+    try {
+      const me = await api.get('/auth/me')
+      setUser(me.data)
+      return me.data
+    } catch (err) {
+      clearTokens()
+      setUser(null)
+      throw err
+    }
+  }, [])
+
   // Регистрация: POST /auth/register принимает JSON
   const register = useCallback(async (data) => {
     try {
@@ -92,7 +111,7 @@ export function AuthProvider({ children }) {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, loading, login, adminLogin, register, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   )

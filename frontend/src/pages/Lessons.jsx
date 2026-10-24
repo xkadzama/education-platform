@@ -80,7 +80,7 @@ export default function Lessons() {
                 {completed.map((lesson) => (
                   <li key={lesson.id} className="lesson-item lesson-completed">
                     <Link
-                      to={`/lessons/${lesson.slug}`}
+                      to={`/lessons/${lesson.uuid}`}
                       className="lesson-link"
                       aria-label={`Открыть урок: ${lesson.title}`}
                     >
@@ -111,7 +111,7 @@ export default function Lessons() {
                 {upcoming.map((lesson) => (
                   <li key={lesson.id} className="lesson-item lesson-upcoming">
                     <Link
-                      to={`/lessons/${lesson.slug}`}
+                      to={`/lessons/${lesson.uuid}`}
                       className="lesson-link"
                       aria-label={`Открыть урок: ${lesson.title}`}
                     >

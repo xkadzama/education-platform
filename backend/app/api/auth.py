@@ -5,7 +5,7 @@ import jwt
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.models.auth import User
 from app.schemas.auth import (  # type: ignore
@@ -60,21 +60,16 @@ async def register(user: UserRegisterRequest, session: AsyncSession = Depends(ge
 	return new_user
 
 
-# --- Логин: проверяем учётные данные и выдаём JWT-пару -----------------------
-@router.post('/login', response_model=TokenResponse)
-async def login(
-	form_data: OAuth2PasswordRequestForm = Depends(),
-	session: AsyncSession = Depends(get_db),
-):
-	"""OAuth2 Password Flow: ждёт form-data с полями `username` (email) и `password`.
-	Форма (а не JSON) — требование стандарта OAuth2, благодаря ей работает кнопка Authorize в Swagger UI.
-	"""
-	stmt = await session.execute(select(User).where(User.email == form_data.username))
+# --- Проверка учётных данных (общая для /login и /admin-login) ---------------
+async def _authenticate(email: str, password: str, session: AsyncSession) -> User:
+	stmt = await session.execute(
+		select(User).where(func.lower(User.email) == email.strip().lower())
+	)
 	user = stmt.scalar_one_or_none()
 
 	# Один и тот же ответ для неверного email и неверного пароля —
 	# чтобы по ответу сервера нельзя было узнать, существует ли аккаунт.
-	if user is None or not verify_password(form_data.password, user.hashed_password):
+	if user is None or not verify_password(password, user.hashed_password):
 		raise HTTPException(
 			status_code=status.HTTP_401_UNAUTHORIZED,
 			detail='Incorrect email or password',
@@ -82,7 +77,37 @@ async def login(
 		)
 	if not user.is_active:
 		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Account is disabled')
+	return user
 
+
+# --- Логин: проверяем учётные данные и выдаём JWT-пару -----------------------
+@router.post('/login', response_model=TokenResponse)
+async def login(
+	form_data: OAuth2PasswordRequestForm = Depends(),
+	session: AsyncSession = Depends(get_db),
+):
+	"""OAuth2 Password Flow: ждёт form-data с полями `username` (email) и `password`.
+
+	Форма (а не JSON) — требование стандарта OAuth2, благодаря ей работает
+	кнопка Authorize в Swagger UI.
+	"""
+	user = await _authenticate(form_data.username, form_data.password, session)
+	return _token_pair(user)
+
+
+# --- Вход в админку: только для role='superuser' ------------------------------
+@router.post('/admin-login', response_model=TokenResponse)
+async def admin_login(
+	form_data: OAuth2PasswordRequestForm = Depends(),
+	session: AsyncSession = Depends(get_db),
+):
+	"""Вход в админку: обычный студент получает 403, даже с верным паролем."""
+	user = await _authenticate(form_data.username, form_data.password, session)
+	if user.role != 'superuser':
+		raise HTTPException(
+			status_code=status.HTTP_403_FORBIDDEN,
+			detail='Superuser access required',
+		)
 	return _token_pair(user)
 
 

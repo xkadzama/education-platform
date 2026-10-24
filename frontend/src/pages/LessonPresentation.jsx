@@ -8,10 +8,14 @@ import { api } from '../api/client'
 GlobalWorkerOptions.workerSrc = workerUrl
 
 function errorText(err, fallback) {
-  return err?.response?.data?.detail || fallback
+  const status = err?.response?.status
+  if (status === 404 || status === 422) return 'Урок не найден.'
+  const detail = err?.response?.data?.detail
+  if (Array.isArray(detail)) return detail[0]?.msg || fallback
+  return detail || fallback
 }
 
-function PresentationViewer({ slug }) {
+function PresentationViewer({ uuid }) {
   const [lesson, setLesson] = useState(null)
   const [status, setStatus] = useState('loading') // loading | ready | error
   const [error, setError] = useState('')
@@ -38,7 +42,7 @@ function PresentationViewer({ slug }) {
   useEffect(() => {
     let cancelled = false
     api
-      .get(`/api/lessons/${encodeURIComponent(slug)}`)
+      .get(`/api/lessons/${encodeURIComponent(uuid)}`)
       .then((res) => {
         if (cancelled) return
         setLesson(res.data)
@@ -50,7 +54,7 @@ function PresentationViewer({ slug }) {
         setStatus('error')
       })
     return () => { cancelled = true }
-  }, [slug])
+  }, [uuid])
 
   // 2. Загрузка PDF
   useEffect(() => {
@@ -274,8 +278,8 @@ function PresentationViewer({ slug }) {
   )
 }
 
-// key={slug} гарантирует сброс PDF/страницы при переходе между уроками.
+// key={uuid} гарантирует сброс PDF/страницы при переходе между уроками.
 export default function LessonPresentation() {
-  const { slug } = useParams()
-  return <PresentationViewer key={slug} slug={slug} />
+  const { uuid } = useParams()
+  return <PresentationViewer key={uuid} uuid={uuid} />
 }

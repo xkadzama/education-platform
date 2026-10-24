@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,7 +17,7 @@ def _lesson_response(lesson: Lesson, progress_id: int | None) -> LessonResponse:
 	"""Единый маппинг ORM-урока + строки прогресса в ответ API."""
 	return LessonResponse(
 		id=lesson.id,
-		slug=lesson.slug,
+		uuid=lesson.uuid,
 		title=lesson.title,
 		topic=lesson.topic,
 		description=lesson.description,
@@ -61,15 +63,20 @@ async def list_lessons(
 	return [_lesson_response(lesson, progress_id) for lesson, progress_id in rows]
 
 
-@router.get('/{slug}', response_model=LessonResponse)
+@router.get('/{lesson_uuid}', response_model=LessonResponse)
 async def get_lesson(
-	slug: str,
+	lesson_uuid: UUID,
 	current_user: User = Depends(get_current_user),
 	session: AsyncSession = Depends(get_db),
 ):
-	"""Один урок по slug — для страницы просмотра презентации."""
+	"""Один урок по публичному UUID — для страницы презентации.
+
+	UUID не даёт перебирать уроки по py-01/py-02; slug остаётся внутренним.
+	"""
 	row = (
-		await session.execute(_lesson_query(current_user.id).where(Lesson.slug == slug))
+		await session.execute(
+			_lesson_query(current_user.id).where(Lesson.uuid == lesson_uuid)
+		)
 	).first()
 	if row is None:
 		raise HTTPException(status_code=404, detail='Lesson not found')

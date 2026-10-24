@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './auth/AuthContext'
 import ProtectedRoute from './auth/ProtectedRoute'
 import Login from './pages/Login'
 import Register from './pages/Register'
+import Admin from './pages/Admin'
 import AppLayout from './components/AppLayout'
 import Dashboard from './pages/Dashboard'
 import Profile from './pages/Profile'
@@ -22,6 +23,8 @@ function AppContent() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      {/* Отдельная страница входа для суперпользователя; вне AppLayout */}
+      <Route path="/admin" element={<Admin />} />
       {/* Каркас (шапка + сайдбар) монтируется ОДИН раз и не пересоздаётся
           при переходах между страницами — контент подменяется динамически
           через <Outlet/> внутри AppLayout. Дочерние маршруты объявлены
@@ -41,7 +44,7 @@ function AppContent() {
         <Route path="profile" element={<Profile />} />
         <Route path="lessons" element={<Lessons />} />
         <Route
-          path="lessons/:slug"
+          path="lessons/:uuid"
           element={(
             <Suspense fallback={<p className="text-secondary">Загружаем презентацию…</p>}>
               <LessonPresentation />

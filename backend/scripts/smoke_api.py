@@ -49,12 +49,29 @@ async def main() -> int:
 			token = resp.json()['access_token']
 			headers = {'Authorization': f'Bearer {token}'}
 
+			# Обычный студент не должен пройти в админку
+			resp = await client.post('/auth/admin-login', data={
+				'username': email,
+				'password': password,
+			})
+			print('admin login as student:', resp.status_code)
+			ok &= resp.status_code == 403
+
 			resp = await client.get('/api/lessons', headers=headers)
 			print('lessons:', resp.status_code, 'count =', len(resp.json()))
 			resp.raise_for_status()
-			ok &= len(resp.json()) >= 12
+			lessons = resp.json()
+			ok &= len(lessons) >= 12
 
-			resp = await client.get('/api/lessons/py-01', headers=headers)
+			target = next(
+				(lesson for lesson in lessons if lesson.get('presentation_url')),
+				lessons[0],
+			)
+			lesson_uuid = target['uuid']
+			print('lesson uuid:', lesson_uuid, '| slug hidden:', 'slug' not in target)
+			ok &= bool(lesson_uuid) and 'slug' not in target
+
+			resp = await client.get(f'/api/lessons/{lesson_uuid}', headers=headers)
 			print('lesson detail:', resp.status_code)
 			resp.raise_for_status()
 			presentation_url = resp.json().get('presentation_url')

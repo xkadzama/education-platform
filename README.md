@@ -35,7 +35,7 @@ frontend/
     api/client.js   axios + автообновление токена
     auth/           AuthContext, ProtectedRoute, tokenStorage
     components/     AppLayout, AppHeader, Sidebar, AvatarButton
-    pages/          Login, Register, Dashboard, Profile, Lessons, LessonPresentation
+    pages/          Login, Register, Admin, Dashboard, Profile, Lessons, LessonPresentation
     styles/         tokens.css, components.css
 docs/
   architecture.md   архитектура и потоки данных
@@ -98,6 +98,10 @@ npm run dev
 | `APP_ENV` | `development` | `production` запрещает дефолтный JWT-секрет |
 | `DATABASE_URL` | `postgresql+asyncpg://education:12345@localhost:5432/edudb` | подключение к БД |
 | `JWT_SECRET_KEY` | dev-секрет | **обязательно заменить в production** |
+| `SUPERADMIN_EMAIL` | — | email первого суперпользователя; **удалить после создания** |
+| `SUPERADMIN_PASSWORD` | — | пароль (Argon2-хеш в БД); **удалить после создания**; минимум 8 символов |
+| `SUPERADMIN_FIRST_NAME` | `Super` | имя суперпользователя |
+| `SUPERADMIN_LAST_NAME` | `Admin` | фамилия суперпользователя |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | `15` | срок жизни access-токена |
 | `REFRESH_TOKEN_EXPIRE_DAYS` | `7` | срок жизни refresh-токена |
 | `CORS_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173` | разрешённые origins |
@@ -112,14 +116,81 @@ npm run dev
 |---|---|---|---|
 | `POST` | `/auth/register` | публичный | регистрация (JSON) |
 | `POST` | `/auth/login` | публичный | OAuth2 form (`username`=email, `password`) |
+| `POST` | `/auth/admin-login` | публичный | вход в админку, только `role='superuser'` (иначе 403) |
 | `POST` | `/auth/refresh` | refresh-токен | новая пара токенов |
 | `GET` | `/auth/me` | Bearer | текущий пользователь |
 | `POST` | `/auth/avatar` | Bearer | загрузка фото (multipart, поле `file`) |
 | `GET` | `/api/lessons` | Bearer | опубликованные уроки + флаг `completed` |
-| `GET` | `/api/lessons/{slug}` | Bearer | один урок для страницы презентации |
+| `GET` | `/api/lessons/{uuid}` | Bearer | один урок по публичному UUID |
 
 Аватар принимается в JPEG/PNG/WebP до 5 МБ, поворачивается по EXIF, уменьшается
 до 512×512 (без апскейла) и сохраняется сжатым WebP.
+
+## Суперпользователь и `/admin`
+
+### Bootstrap первого суперпользователя
+
+Правило: **если таблица `users` пуста, при старте backend создаётся
+суперпользователь с данными из конфигурации.** Данные берутся из `backend/.env`
+(или переменных окружения), пароль хешируется Argon2 и в БД попадает только
+хеш.
+
+1. Пропишите в `backend/.env`:
+
+   ```env
+   SUPERADMIN_EMAIL=admin@xkadzama.dev
+   SUPERADMIN_PASSWORD=НадёжныйПароль1
+   SUPERADMIN_FIRST_NAME=Super
+   SUPERADMIN_LAST_NAME=Admin
+   ```
+
+2. Запустите backend (`poetry run uvicorn app.main:app --reload --port 8000`).
+   В логе старта появится:
+
+   ```
+   INFO: app.core.bootstrap: Создан начальный суперпользователь: admin@xkadzama.dev (role=superuser). Строки SUPERADMIN_* можно удалить из .env.
+   ```
+
+3. Удалите `SUPERADMIN_*` из `.env` — пользователь остаётся в БД. Повторный
+   старт без этих переменных проходит штатно (одна информационная строка).
+
+Поведение в разных ситуациях:
+
+| Ситуация | Что делает bootstrap |
+|---|---|
+| `users` пуста, обе переменные заданы | Создаёт `role='superuser'` с Argon2-хешем |
+| `users` не пуста | Ничего не делает: роли и пароли не трогает |
+| Обе переменные не заданы | Пропускает, пишет INFO в лог |
+| Задана только одна из двух | Пишет ERROR с именем отсутствующей переменной, **не роняет сервер** |
+| Некорректный email / пароль короче 8 символов | Пишет ERROR, сервер продолжает работать |
+| Пароль без заглавной буквы или цифры | WARNING, но пользователь создаётся |
+| Миграции не применены | ERROR с подсказкой `alembic upgrade head` |
+
+Важно: bootstrap срабатывает только на **пустой** таблице. Если в базе уже есть
+любые пользователи (например, локальная разработка), но суперпользователя нет —
+используйте явную команду:
+
+```bash
+cd backend
+poetry run python -m scripts.create_superuser
+```
+
+Она читает те же `SUPERADMIN_*`, создаёт пользователя либо повышает
+существующего с таким email до `superuser` и активирует его. Пароль
+перезаписывается только если отличается от указанного в `.env` (повторный
+запуск не создаёт дубликатов и не пересчитывает хеш зря).
+
+### Вход в админку
+
+http://localhost:5173/admin — отдельная страница вне основного каркаса.
+`POST /auth/admin-login` возвращает токены только при `role='superuser'`,
+обычному студенту с верным паролем отвечает 403 («Нет прав суперпользователя»).
+После успешного входа показывается заглушка админ-панели с email и ролью; права
+и разделы появятся позже (для будущих endpoint'ов есть `require_role('superuser')`).
+
+Пароль в `.env` — временный канал доставки: после создания суперпользователя
+строки удаляются, а дальше пароль меняется только через
+`scripts.create_superuser` (черновой вариант до появления UI смены пароля).
 
 ## Уроки и презентации
 
@@ -136,10 +207,15 @@ INSERT INTO lessons (slug, title, topic, duration_minutes, sort_order, is_publis
 VALUES ('py-13', 'Новая тема', 'Практика', 30, 13, true);
 ```
 
+У каждого урока есть публичный `uuid` (UUID v4) — только он используется в
+URL и API. Внутренний `slug` (например, `py-01`) остаётся в БД для сидов и
+будущей админки и в ответе API не отдаётся, чтобы нельзя было перейти к
+соседнему уроку, просто поменяв `py-01` на `py-02`.
+
 `lessons.presentation_url` хранит путь к PDF. Для урока `py-01` привязан
 `/uploads/presentations/m1Lesson1.pdf` (сконвертирован из
 `backend/uploads/presentations/m1Lesson1.pptx`).
-Клик по строке урока открывает `/lessons/:slug` — компактное окно просмотра:
+Клик по строке урока открывает `/lessons/:uuid` — компактное окно просмотра:
 PDF.js рендерит текущий слайд на canvas, кнопки «Назад/Вперёд» листают
 страницы, счётчик показывает `N / всего`, стрелки клавиатуры тоже работают.
 Кнопка «На весь экран» переводит окно в нативный fullscreen; скачивание PDF

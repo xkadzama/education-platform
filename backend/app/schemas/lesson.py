@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from pydantic import BaseModel
 
 
@@ -9,7 +11,8 @@ class LessonResponse(BaseModel):
 	"""
 
 	id: int
-	slug: str
+	# публичный идентификатор: только он попадает в URL/API
+	uuid: UUID
 	title: str
 	topic: str
 	description: str | None = None

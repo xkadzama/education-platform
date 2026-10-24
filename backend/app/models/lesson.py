@@ -1,4 +1,5 @@
 from datetime import datetime
+from uuid import UUID, uuid4
 
 from sqlalchemy import (
 	Boolean,
@@ -9,7 +10,9 @@ from sqlalchemy import (
 	Text,
 	UniqueConstraint,
 	func,
+	text,
 )
+from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -26,6 +29,16 @@ class Lesson(Base):
 	__tablename__ = 'lessons'
 
 	id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+	# Публичный идентификатор для URL/API. slug остаётся внутренним (сиды,
+	# админка), чтобы по нему нельзя было перейти к соседнему уроку.
+	uuid: Mapped[UUID] = mapped_column(
+		PGUUID(as_uuid=True),
+		unique=True,
+		index=True,
+		nullable=False,
+		default=uuid4,
+		server_default=text('gen_random_uuid()'),
+	)
 	slug: Mapped[str] = mapped_column(String(50), unique=True, index=True, nullable=False)
 	title: Mapped[str] = mapped_column(String(255), nullable=False)
 	topic: Mapped[str] = mapped_column(String(100), nullable=False)
