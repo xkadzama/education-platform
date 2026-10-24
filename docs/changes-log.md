@@ -1,4 +1,11 @@
-Структура файла
+# Журнал изменений Xkadzama Education Platform
+
+> **Актуальное состояние проекта (2026-10-24):** см. [architecture.md](architecture.md)
+> и [README.md](../README.md). Записи ниже — историческая хронология; пометки
+> «staged / коммит не создан» относятся к моменту написания и могут быть
+> устаревшими.
+
+## Исходный план структуры файла
 Обзор проекта — что за платформа Xkadzama Education, стек (FastAPI + Argon2 + PyJWT / Vite + React 19 + Router v7), репозиторий и ветка main, инструкция «как продолжить работу» (poetry install, uvicorn, npm run dev);
 §1 JWT-авторизация (backend) — все 5 файлов с эндпоинтами (/auth/login, /auth/refresh, /auth/me, /auth/register), логикой refresh-токенов, RBAC через require_role(), схемой БД;
 §2 React-фронтенд — структура папок, механизм axios-интерцепторов с флагом isRefreshing (одновременный refresh на все 401), ProtectedRoute, прокси Vite;
@@ -921,3 +928,309 @@ components.css, журнал) — будут добавлены в staging area 
 
 ### Статус
 Изменения внесены в рабочее дерево и добавлены в staging area (git add). Коммит не создавался.
+
+---
+
+## 2026-10-24 — Этапы A/B/C: стабилизация UI, уроки из PostgreSQL, инфраструктура
+
+Задача пользователя: «Начинаем с А и идем дальше по B и C». Дополнительно:
+список на `/lessons` должен быть актуальным и приходить из БД (наполнение —
+позже через админку, пока данные добавляются вручную), а клик по теме с
+открытием презентации будет реализован на следующем этапе.
+
+### A. Стабилизация UI
+
+1. `frontend/src/components/AppLayout.jsx`
+   - Начальное состояние панели вычисляется лениво: desktop (`min-width:
+     1025px`) → `open`, mobile → `hidden`. Раньше всегда было `open`, из-за
+     чего на телефоне приложение стартовало с открытым overlay и затемнением.
+   - Добавлен `matchMedia`-эффект: при ресайзе с мобильного на десктоп
+     состояние `hidden` превращается в `mini`. Это устраняет рассинхрон:
+     панель на десктопе всегда имеет ширину 256/52px, а `--sb-live` больше
+     не может дать 52px при фактических 256px.
+2. `frontend/src/components/Sidebar.jsx`
+   - Escape закрывает панель только при `max-width: 1024px`. На десктопе
+     состояние `hidden` не определено в CSS, и прежний обработчик оставлял
+     панель 256px, сдвигая контент на 52px (наложение ~204px).
+   - Контейнер панели `<div role="dialog">` заменён на семантический
+     `<aside>`: постоянная навигация — не диалог; `aria-label` сохранён.
+3. `frontend/src/pages/Profile.jsx`
+   - После `POST /auth/avatar` обновляется не только контекст (`updateUser`),
+     но и локальный снимок `me`. Раньше `displayUser` брал старый
+     `avatar_url` из `me`, и большой аватар на странице не менялся до F5.
+4. `frontend/src/pages/Login.jsx`, `frontend/src/pages/Register.jsx`
+   - Удалён неиспользуемый `useLocation`; данные регистрации собираются
+     явным объектом без неиспользуемого `password2` (убраны 2 lint-warning).
+5. Проверка: `npm run build` — успешно; `npx oxlint` — 0 errors (остались
+   2 предсуществующих warning про fast-refresh в AvatarButton/AuthContext).
+
+### B. Уроки из PostgreSQL
+
+1. `backend/app/models/lesson.py` (новый) — `Lesson` (slug, title, topic,
+   description, duration_minutes, presentation_url, sort_order, is_published,
+   timestamps) и `LessonProgress` (user_id, lesson_id, completed_at,
+   уникальная пара, каскадное удаление). `models/__init__.py` экспортирует обе
+   модели, чтобы Alembic их видел.
+2. `backend/app/schemas/lesson.py` (новый) — `LessonResponse`, включая
+   персональный `completed`.
+3. `backend/app/api/lessons.py` (новый) — `GET /lessons` под Bearer-токеном:
+   `LEFT JOIN lesson_progress` по текущему пользователю, только
+   `is_published`, сортировка `sort_order, id`.
+4. `backend/app/main.py` — подключён роутер уроков.
+5. Миграция `backend/alembic/versions/9c1f4a7b2d10_create_lessons_and_progress.py`
+   (новая): создаёт `lessons`/`lesson_progress`, индексы, unique constraint и
+   сидирует 12 тем Python (slug py-01…py-12). Прогресс не сидируется — он
+   персональный и начинается с нуля (у существующих пользователей
+   `completed=false`, раздел «Пройдено» скрыт, пока нет отметок).
+6. `frontend/src/pages/Lessons.jsx` — вместо импорта заглушки запрашивает
+   `GET /lessons`, показывает loading/error/retry, формирует группы по
+   `completed`, длительность форматирует из `duration_minutes`. При пустом
+   списке — «Уроки ещё не добавлены».
+7. `frontend/src/data/lessons.js` — удалён (источник данных теперь БД).
+8. `frontend/vite.config.js` — добавлен прокси `/lessons` → `:8000`.
+9. `frontend/src/styles/components.css` — добавлен `.lessons-hint`.
+10. Проверка: миграция применена (`alembic current` = `a4d5e6f70819`);
+    в БД 12 уроков; авторизованный `GET /lessons` вернул 12 записей;
+    `npm run build` — успешно.
+
+### C. Инфраструктура и безопасность
+
+1. `backend/app/core/config.py` (новый) — единая конфигурация из env/`.env`
+   (`python-dotenv`): `DATABASE_URL`, `JWT_SECRET_KEY`, сроки токенов,
+   `CORS_ORIGINS`, `SQL_ECHO`, `UPLOADS_DIR`, лимиты аватара. В
+   `APP_ENV=production` запрещён дефолтный dev-секрет. Дефолтный секрет теперь
+   стабильный (раньше генерировался случайно при каждом старте, инвалидируя
+   сессии после рестарта).
+2. `backend/app/core/security.py`, `database.py` — используют значения из
+   `config.py`; `echo` управляется `SQL_ECHO`.
+3. `backend/app/main.py` — добавлен `CORSMiddleware`; каталог uploads —
+   абсолютный `backend/uploads`, не зависит от cwd; удалён устаревший
+   `@app.on_event('startup')` с ALTER TABLE.
+4. Миграция `backend/alembic/versions/a4d5e6f70819_add_avatar_url_to_users.py`
+   (новая) — `avatar_url` теперь часть миграций; добавление идемпотентно
+   (inspector), поэтому безопасно для БД, где колонка уже была создана
+   старым startup-хуком.
+5. `backend/alembic/env.py` — URL берётся из `app.core.config`, а не из
+   `alembic.ini` (единый источник).
+6. `backend/app/services/avatar.py` (новый) — `process_avatar`: реальное
+   декодирование, проверка формата JPEG/PNG/WebP и лимита пикселей,
+   EXIF-поворот, ресайз до 512×512 без апскейла, сохранение WebP (quality 85).
+   `app/api/auth.py` использует сервис; имя файла всегда `.webp`, старый
+   аватар удаляется только внутри `AVATARS_DIR`.
+7. `backend/.env.example` (новый) — все переменные с комментариями и
+   предупреждением о production-секрете.
+8. `.gitignore` — добавлены `.env`, `backend/.env`, `backend/uploads/`,
+   `.DS_Store`; runtime-аватар `7_80ddc0c14cbd.png` снят с отслеживания
+   (`git rm --cached`), чтобы загрузки не попадали в git.
+9. `backend/pyproject.toml` + `poetry.lock` — явно объявлен `python-dotenv`;
+   lock обновлён `poetry lock` (изменение только content-hash, пакет уже был
+   транзитивно). Дополнительно добавлен `[tool.poetry] packages = [{ include =
+   "app" }]`: без него `poetry build/install` падал с «No file/folder found
+   for package education-platform», то есть CI и инструкция запуска были бы
+   нерабочими. Добавлены `app/__init__.py`, `app/api/__init__.py`,
+   `app/schemas/__init__.py` (регулярные пакеты вместо namespace) и
+   `backend/README.md` (на него ссылается `readme` в pyproject).
+   Проверка: `poetry check --lock`, `poetry build` (sdist + wheel) — успешно;
+   артефакты `dist/` и временный `backend/.venv` удалены.
+10. Тесты (новые, `unittest`, без БД): `backend/tests/test_security.py`
+    (Argon2, access/refresh, подмена типа и подписи),
+    `test_schemas.py` (валидация пароля), `test_avatar.py` (ресайз, WebP,
+    прозрачность, битые/неподдерживаемые файлы). Итог: 14 тестов OK.
+11. `backend/scripts/smoke_api.py` (новый) — живой сценарий: регистрация →
+    логин → `GET /lessons` → загрузка JPEG → проверка WebP 512px → CORS
+    preflight; тестовый пользователь и файл удаляются. Итог: SMOKE OK.
+12. `.github/workflows/ci.yml` (новый) — backend: poetry check/install,
+    unittest, compileall; frontend: npm ci, lint, build.
+13. `README.md` — полноценная инструкция запуска, env-таблица, API, работа с
+    уроками, проверки. `docs/architecture.md` (новый) — слои, потоки
+    авторизации/уроков, состояния сайдбара, ограничения.
+
+### Что не менялось / дальше
+
+- Клик по уроку и презентация не реализованы: в модели есть
+  `presentation_url`, но фронтенд его пока не использует.
+- Админка и CRUD уроков, эндпоинт отметки прохождения, отзыв refresh-токенов —
+  следующие этапы.
+- Изменения находятся в рабочем дереве, коммит не создавался.
+
+---
+
+## 2026-10-24 — Просмотр презентации урока: компактное окно с листанием
+
+Задача: по клику на «Введение в Python: установка и первый скрипт» открывать
+страницу с презентацией, но не на всю площадь сайта, а в окне с кнопками
+«Назад»/«Вперёд» для переключения слайдов. Презентации пока привязываются
+вручную, админская загрузка — позже.
+
+### Исходные файлы
+
+- `presentations/m1Lesson1.pptx` — 51 слайд, «Знакомство с IT & Python»
+  (соответствует уроку py-01). Сконвертирован в `presentations/m1Lesson1.pdf`
+  через LibreOffice Kit; PDF используется для показа в браузере.
+- `presentations/aiogram8.pdf` — 40 страниц, тема «Aiogram / Telegram-боты»,
+  к текущему уроку не относится и пока не привязан.
+
+### Backend
+
+1. `app/core/config.py` — добавлен `PRESENTATIONS_DIR` (по умолчанию
+   `presentations/` в корне репозитория, переопределяется env).
+2. `app/main.py` — каталог презентаций создаётся при старте и монтируется как
+   `/presentations` (StaticFiles).
+3. `app/api/lessons.py`:
+   - роутер переведён с `/lessons` на **`/api/lessons`**. Причина: `/lessons`
+     совпадал с SPA-маршрутами `/lessons` и `/lessons/:slug`, и Vite-прокси
+     перехватывал навигацию браузера, отдавая JSON вместо страницы. Отдельный
+     префикс `/api` устраняет конфликт структурно (попытка обойтись
+     `bypass` по `Accept` оказалась хрупкой — headless Chrome зависал).
+   - добавлен `GET /api/lessons/{slug}` — один урок для страницы презентации;
+     неизвестный/неопубликованный slug → 404.
+   - маппинг урока вынесен в `_lesson_response`, запрос — в `_lesson_query`.
+4. Миграция `backend/alembic/versions/c5e6f7081920_attach_intro_presentation.py`
+   (новая): для `py-01` выставляет
+   `presentation_url = '/presentations/m1Lesson1.pdf'`.
+5. `backend/scripts/smoke_api.py` — путь обновлён на `/api/lessons` (и в
+   CORS-preflight).
+
+### Frontend
+
+1. `package.json` / `package-lock.json` — добавлен `pdfjs-dist` 6.4.299.
+2. `src/pages/LessonPresentation.jsx` (новый):
+   - загружает урок через `GET /api/lessons/{slug}`;
+   - PDF.js (`getDocument`) грузит PDF, worker подключается как asset Vite;
+   - текущий слайд рендерится на `<canvas>`; ResizeObserver пересчитывает
+     размер при изменении ширины (в т.ч. при сворачивании сайдбара);
+   - кнопки «← Назад» / «Вперёд →», счётчик `N / всего`, стрелки клавиатуры;
+   - состояния: загрузка, ошибка, «презентация не загружена», скачивание PDF;
+   - `key={slug}` на внутреннем компоненте сбрасывает PDF при смене урока.
+3. `src/App.jsx` — маршрут `lessons/:slug`; страница подключена через
+   `React.lazy` + `Suspense`, чтобы PDF.js (≈430 КБ) не попадал в основной
+   бандл.
+4. `src/pages/Lessons.jsx` — строки уроков обёрнуты в `<Link>` на
+   `/lessons/{slug}`, добавлена стрелка `›`.
+5. `src/styles/components.css` — стили `.presentation-page/-window/-stage/
+   -canvas/-controls/-counter/-download/-empty`; окно ограничено 960px,
+   слайд 16:9, кнопки в нижней панели; строка урока — `.lesson-link`.
+6. `vite.config.js` — прокси `/api` (вместо `/lessons`) и `/presentations`.
+
+### Документация
+
+- `README.md` — эндпоинты `/api/lessons[/{slug}]`, `PRESENTATIONS_DIR`,
+  раздел «Уроки и презентации», конвертация PPTX → PDF, обновлён roadmap.
+- `docs/architecture.md` — схема статики, поток презентаций, frontend-страница,
+  актуальные ограничения.
+- `backend/.env.example` — `PRESENTATIONS_DIR`.
+
+### Проверка
+
+- Backend: `alembic upgrade head` → `c5e6f7081920`; `alembic check` — без drift.
+- `GET /api/lessons/py-01` с Bearer возвращает `presentation_url =
+  /presentations/m1Lesson1.pdf`; `GET /api/lessons/nope` → 404.
+- `GET /presentations/m1Lesson1.pdf` → 200 `application/pdf`, 51 страница.
+- Frontend: `npm run build` — успешно; основной чанк 336 КБ, ленивый
+  `LessonPresentation` 433 КБ, worker PDF.js отдельным asset; oxlint — 0 errors.
+- Headless Chrome (CDP, реальный браузер):
+  - авторизованный заход на `/lessons/py-01` рендерит canvas 934×525,
+    счётчик `1 / 51`, «Назад» disabled, «Вперёд» enabled;
+  - клик «Вперёд» → слайд 2, счётчик `2 / 51`, обе кнопки активны;
+  - заход без токена на `/lessons/py-01` корректно редиректит на `/login`.
+- Временные скрипты/скриншоты headless-проверки удалены.
+
+### Статус
+
+Изменения в рабочем дереве, коммит не создавался. `presentations/m1Lesson1.pdf`
+и `presentations/aiogram8.pdf` пока untracked — при коммите добавить PDF,
+на который ссылается миграция.
+
+---
+
+## 2026-10-24 — Фикс: возврат «К урокам» с презентации оставлял /lessons пустым
+
+**Симптом:** на `/lessons/py-01` клик по «← К урокам» меняет URL на `/lessons`,
+но список уроков не появляется до F5.
+
+**Диагностика (headless Chrome + CDP):** после клика `body` пустой,
+`.lesson-link` = 0, в консоли `TypeError: doc.destroy is not a function` из
+`LessonPresentation.jsx` в `commitHookEffectListUnmount`. В PDF.js 6
+`PDFDocumentProxy` больше не имеет метода `destroy()` (владелец ресурсов —
+`PDFDocumentLoadingTask`). Ошибка в cleanup пассивного эффекта при
+размонтировании прерывала commit, поэтому новый маршрут не отрисовывался.
+
+**Исправление (`frontend/src/pages/LessonPresentation.jsx`):**
+- убран `doc.destroy()` / `loaded.destroy()`;
+- cleanup всегда вызывает `task.destroy().catch(() => {})` — loading task
+  закрывает документ, transport и worker;
+- в `.then`, если эффект уже отменён, просто `return` (task уничтожается
+  cleanup'ом).
+
+**Проверка:** тот же сценарий в headless Chrome: `/lessons/py-01` → клик по
+`.back-link` → URL `/lessons`, 12 `.lesson-link`, `.lessons-page` присутствует,
+исключений в консоли нет (до фикса — пустой `body`).
+
+---
+
+## 2026-10-24 — Презентации: без скачивания, fullscreen, переезд в uploads
+
+### 1. Убрана кнопка скачивания
+
+`frontend/src/pages/LessonPresentation.jsx` — удалена ссылка
+`a.presentation-download` из панели управления. В
+`frontend/src/styles/components.css` удалены правила `.presentation-download`.
+
+### 2. Добавлен полноэкранный режим
+
+`frontend/src/pages/LessonPresentation.jsx`:
+- добавлены `windowRef`, состояние `isFullscreen` и слушатель
+  `fullscreenchange` (синхронизирует кнопку с нативным Fullscreen API);
+- `toggleFullscreen()` вызывает `requestFullscreen()` на `.presentation-window`
+  и `document.exitFullscreen()` при выходе; ошибки браузера игнорируются;
+- в панели управления появилась кнопка `.presentation-fullscreen`
+  («На весь экран» ⇄ «Выйти», `aria-pressed`);
+- `stageSize` теперь хранит и ширину, и высоту сцены (ResizeObserver);
+- рендер слайда в fullscreen вписывает canvas и по ширине, и по доступной
+  высоте (`min(widthScale, heightScale)`), в обычном режиме — по ширине;
+- размеры canvas задаются инлайн в CSS-пикселях, поэтому слайд не растягивается.
+
+`frontend/src/styles/components.css`:
+- `.presentation-window:fullscreen` — flex-колонка 100vw×100vh без рамки;
+- `.presentation-stage` в fullscreen занимает всё свободное место
+  (`flex:1; min-height:0`), панель управления остаётся снизу;
+- `.presentation-fullscreen { margin-inline-start:auto }`, на мобильных — на всю
+  ширину.
+
+### 3. Презентации перенесены в uploads
+
+- Файлы перемещены: `presentations/*` → `backend/uploads/presentations/`
+  (`m1Lesson1.pptx`, `m1Lesson1.pdf`, `aiogram8.pdf`); корневая папка
+  `presentations/` удалена.
+- `backend/app/core/config.py` — удалён `PRESENTATIONS_DIR`.
+- `backend/app/main.py` — удалён mount `/presentations`; создаётся
+  `uploads/presentations`, всё отдаётся существующим `/uploads`.
+- `backend/.env.example` — удалена переменная `PRESENTATIONS_DIR`.
+- `frontend/vite.config.js` — удалён прокси `/presentations`; презентации идут
+  через `/uploads`.
+- Миграция `backend/alembic/versions/d7e8f9012345_move_presentations_to_uploads.py`
+  (новая): `presentation_url` для `py-01` теперь
+  `/uploads/presentations/m1Lesson1.pdf`.
+- `backend/uploads/` остаётся в `.gitignore`; PPTX снят с индекса git
+  (`git rm --cached presentations/m1Lesson1.pptx`), папка `presentations/`
+  больше не отслеживается.
+- `README.md`, `docs/architecture.md`, `frontend/README.md` обновлены под новое
+  хранилище и fullscreen.
+
+### Проверка
+
+- `alembic upgrade head` → `d7e8f9012345`; `alembic check` — без drift; в БД
+  `py-01 → /uploads/presentations/m1Lesson1.pdf`.
+- `GET /uploads/presentations/m1Lesson1.pdf` (backend :8000 и через Vite :5173)
+  → 200 `application/pdf`, 1 355 448 байт.
+- Smoke-тест: детали урока отдают новый URL, PDF скачивается, всё OK.
+- Frontend build/oxlint — успешно, 0 errors (2 старых warning).
+- Headless Chrome: `.presentation-download` отсутствует; кнопка «На весь экран»
+  переводит `.presentation-window` в fullscreen, canvas становится 1440×810,
+  текст кнопки меняется на «Выйти»; повторный клик возвращает обычный режим
+  (canvas 934×525).
+
+### Статус
+
+Изменения в рабочем дереве, коммит не создавался. Файлы презентаций теперь
+находятся в gitignored `backend/uploads/presentations/`.

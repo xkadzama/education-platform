@@ -79,7 +79,12 @@ export default function Profile() {
     setUploading(true)
     try {
       const res = await api.post('/auth/avatar', form) // axios сам поставит boundary
-      updateUser({ avatar_url: res.data.avatar_url })   // фото сразу обновится и в шапке
+      // Бэкенд возвращает обновлённого пользователя целиком. Обновляем и
+      // контекст (шапка), и локальный снимок `me`: иначе displayUser продолжал
+      // бы брать старый avatar_url из `me` и большой аватар не менялся до F5.
+      const updated = res.data?.data ?? res.data
+      setMe((prev) => ({ ...(prev || {}), ...updated }))
+      updateUser(updated)
     } catch (err) {
       setError(err.response?.data?.detail || 'Не удалось загрузить фото')
     } finally {

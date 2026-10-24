@@ -131,10 +131,17 @@ export default function Sidebar({ state, setState, ready }) {
   const isOpen = state !== 'hidden'
   const isMini = state === 'mini'
 
-  // Escape закрывает панель (аналог [--auto-close:lg])
+  // Escape закрывает панель только на мобильных (аналог [--auto-close:lg]).
+  // На десктопе панель постоянная (lg:block): состояние 'hidden' там
+  // не определено и раньше приводило к рассинхрону — панель оставалась
+  // 256px, а контент сдвигался на 52px (--sb-live). Поэтому desktop Escape
+  // игнорируем.
   useEffect(() => {
     if (!isOpen) return undefined
-    const onKey = (e) => { if (e.key === 'Escape') setState('hidden') }
+    const mobileQuery = window.matchMedia('(max-width: 1024px)')
+    const onKey = (e) => {
+      if (e.key === 'Escape' && mobileQuery.matches) setState('hidden')
+    }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [isOpen, setState])
@@ -155,11 +162,10 @@ export default function Sidebar({ state, setState, ready }) {
           (lg:block) — toggle работает как minifier (w-64 ⇄ w-13). Мобильные:
           без .sidebar-open панель уезжает за край (-translate-x-full),
           открывает её внешняя кнопка «Open» (в AppLayout, lg:hidden). */}
-      <div
+      <aside
         ref={panelRef}
         id="sidebar-panel"
         className={`sidebar hs-overlay${isOpen ? ' sidebar-open' : ''}${isMini ? ' sidebar-minified' : ''}${ready ? ' is-ready' : ''}`}
-        role="dialog"
         tabIndex={-1}
         aria-label="Сайдбар"
       >
@@ -225,7 +231,7 @@ export default function Sidebar({ state, setState, ready }) {
             </div>
           </nav>
         </div>
-      </div>
+      </aside>
     </>
   )
 }

@@ -1,3 +1,11 @@
 .idea/
 .venv/
 *.pyc
+.DS_Store
+
+# Локальные секреты/настройки
+.env
+backend/.env
+
+# Runtime-загрузки (аватары) — не должны попадать в git
+backend/uploads/

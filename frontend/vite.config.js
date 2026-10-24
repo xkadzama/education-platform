@@ -13,7 +13,15 @@ export default defineConfig({
         target: 'http://localhost:8000',
         changeOrigin: true,
       },
-      // Отдача загруженных фото профиля (app.mount('/uploads', ...) на бэкенде)
+      // API уроков: GET /api/lessons и /api/lessons/:slug.
+      // Отдельный префикс нужен, чтобы не конфликтовать с SPA-маршрутами
+      // /lessons и /lessons/:slug (оба отдаёт Vite).
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
+      // PDF-презентации уроков: /uploads/presentations/<file>.pdf
+      // (отдаются тем же /uploads, что и аватары)
       '/uploads': {
         target: 'http://localhost:8000',
         changeOrigin: true,

@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './auth/AuthContext'
 import ProtectedRoute from './auth/ProtectedRoute'
@@ -7,6 +8,10 @@ import AppLayout from './components/AppLayout'
 import Dashboard from './pages/Dashboard'
 import Profile from './pages/Profile'
 import Lessons from './pages/Lessons'
+
+// PDF.js весит много — страницу просмотра грузим отдельным чанком
+// только при переходе на конкретный урок.
+const LessonPresentation = lazy(() => import('./pages/LessonPresentation'))
 
 // Разворачиваем приложение только после проверки токена на сервере
 function AppContent() {
@@ -35,6 +40,14 @@ function AppContent() {
         <Route index element={<Dashboard />} />
         <Route path="profile" element={<Profile />} />
         <Route path="lessons" element={<Lessons />} />
+        <Route
+          path="lessons/:slug"
+          element={(
+            <Suspense fallback={<p className="text-secondary">Загружаем презентацию…</p>}>
+              <LessonPresentation />
+            </Suspense>
+          )}
+        />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

@@ -1,8 +1,8 @@
 """Живой smoke-тест API (требует запущенный backend на :8000 и PostgreSQL).
 
-Проверяет полный путь: регистрация → логин → GET /lessons → загрузка аватара
-(WebP ≤ 512px) → CORS preflight. Созданный тестовый пользователь и его файл
-удаляются в finally.
+Проверяет полный путь: регистрация → логин → GET /api/lessons → детали урока
+и отдача PDF-презентации → загрузка аватара (WebP ≤ 512px) → CORS preflight.
+Созданный тестовый пользователь и его файл удаляются в finally.
 
 Запуск из backend/:  poetry run python -m scripts.smoke_api
 """
@@ -49,10 +49,21 @@ async def main() -> int:
 			token = resp.json()['access_token']
 			headers = {'Authorization': f'Bearer {token}'}
 
-			resp = await client.get('/lessons', headers=headers)
+			resp = await client.get('/api/lessons', headers=headers)
 			print('lessons:', resp.status_code, 'count =', len(resp.json()))
 			resp.raise_for_status()
 			ok &= len(resp.json()) >= 12
+
+			resp = await client.get('/api/lessons/py-01', headers=headers)
+			print('lesson detail:', resp.status_code)
+			resp.raise_for_status()
+			presentation_url = resp.json().get('presentation_url')
+			print('presentation_url:', presentation_url)
+			ok &= bool(presentation_url)
+
+			resp = await client.get(presentation_url)
+			print('presentation fetch:', resp.status_code, resp.headers.get('content-type'), len(resp.content))
+			ok &= resp.status_code == 200 and resp.content.startswith(b'%PDF-')
 
 			image = Image.new('RGB', (1400, 900), (255, 90, 0))
 			buffer = io.BytesIO()
@@ -76,7 +87,7 @@ async def main() -> int:
 			ok &= max(uploaded.size) <= 512
 
 			resp = await client.options(
-				'/lessons',
+				'/api/lessons',
 				headers={
 					'Origin': 'http://localhost:5173',
 					'Access-Control-Request-Method': 'GET',

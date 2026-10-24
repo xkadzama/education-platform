@@ -15,13 +15,43 @@ import Sidebar from './Sidebar'
 //  • контент сдвигается через margin-inline-start = фактической ширине панели
 //    (content-push: 256px ↔ 52px ↔ 0 на мобильных);
 //  • переходы включаются только после первого кадра (ready).
+const DESKTOP_QUERY = '(min-width: 1025px)'
+
+// На десктопе панель по умолчанию открыта, на мобильных — скрыта
+// (эталон Preline: [--opened:lg] — открыто только на lg+). Вычисляем
+// синхронно в lazy-initializer, чтобы при первом кадре не было вспышки
+// открытого overlay на телефоне.
+function initialSidebarState() {
+  if (typeof window === 'undefined') return 'open'
+  return window.matchMedia(DESKTOP_QUERY).matches ? 'open' : 'hidden'
+}
+
 export default function AppLayout() {
-  const [state, setState] = useState('open')   // 'open' | 'mini' | 'hidden'
+  const [state, setState] = useState(initialSidebarState)   // 'open' | 'mini' | 'hidden'
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
     const raf = requestAnimationFrame(() => setReady(true))
     return () => cancelAnimationFrame(raf)
+  }, [])
+
+  // При переходе через брейкпоинт поддерживаем корректное состояние:
+  // mobile → desktop: 'hidden' невозможно, превращаем в 'mini' (иначе
+  //   панель 256px, а --sb-live 52px — контент уезжает под панель);
+  // desktop → mobile: открытую/мини-панель прячем в overlay-режим, чтобы
+  //   меню не накрывало контент после сужения окна.
+  useEffect(() => {
+    const mq = window.matchMedia(DESKTOP_QUERY)
+    const sync = () => {
+      if (mq.matches) {
+        setState((s) => (s === 'hidden' ? 'mini' : s))
+      } else {
+        setState((s) => (s === 'hidden' ? s : 'hidden'))
+      }
+    }
+    sync()
+    mq.addEventListener('change', sync)
+    return () => mq.removeEventListener('change', sync)
   }, [])
 
   // На десктопе панель не прячется полностью (lg:block): 'hidden' трактуется

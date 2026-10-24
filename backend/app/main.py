@@ -7,9 +7,11 @@ from app.core.config import CORS_ORIGINS, UPLOADS_DIR
 
 
 # Загруженные фото профиля: /uploads/avatars/<file>.
+# Презентации: /uploads/presentations/<file>.pdf.
 # Путь абсолютный (backend/uploads), не зависит от cwd запуска.
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 (UPLOADS_DIR / 'avatars').mkdir(parents=True, exist_ok=True)
+(UPLOADS_DIR / 'presentations').mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(title='Xkadzama Education API', version='0.1.0')
 

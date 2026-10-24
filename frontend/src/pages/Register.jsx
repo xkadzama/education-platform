@@ -40,7 +40,13 @@ export default function Register() {
 
     setSubmitting(true)
     try {
-      const { password2, ...data } = form
+      // password2 — только клиентская проверка, на сервер не отправляем
+      const data = {
+        first_name: form.first_name,
+        last_name: form.last_name,
+        email: form.email,
+        password: form.password,
+      }
       await register(data)
     } catch (err) {
       setError(extractError(err))
