@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { NavLink } from 'react-router-dom'
+import { Link, NavLink } from 'react-router-dom'
 
 // Сайдбар — точная адаптация эталонного Preline-сниппета
 // #hs-sidebar-content-push-to-mini-sidebar (behavior: content push to mini sidebar).
@@ -36,6 +36,7 @@ const ICONS = {
   folder: <path d="M15.5 2H8.6c-.4 0-.8.2-1.1.5-.3.3-.5.7-.5 1.1v12.8c0 .4.2.8.5 1.1.3.3.7.5 1.1.5h9.8c.4 0 .8-.2 1.1-.5.3-.3.5-.7.5-1.1V6.5L15.5 2z M3 7.6v12.8c0 .4.2.8.5 1.1.3.3.7.5 1.1.5h9.8 M15 2v5h5" />,
   calendar: <><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></>,
   docs: <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8" />,
+  users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></>,
 }
 
 // Пункты без собственной иконки получают маркер-точку — она остаётся видимой
@@ -121,9 +122,16 @@ function SidebarLink({ item, nested }) {
   )
 }
 
-export default function Sidebar({ state, setState, ready }) {
+export default function Sidebar({
+  state,
+  setState,
+  ready,
+  items = NAV,
+  brandTo = '/',
+  brandLabel = 'Xkadzama',
+}) {
   // always-open: по умолчанию раскрыта первая секция с иконкой (как Users в эталоне)
-  const firstSection = NAV.find((i) => i.kind === 'accordion')
+  const firstSection = items.find((i) => i.kind === 'accordion')
   const [openId, setOpenId] = useState(firstSection ? firstSection.id : null)
   const panelRef = useRef(null)
   const toggleRef = useRef(null)
@@ -172,7 +180,9 @@ export default function Sidebar({ state, setState, ready }) {
         <div className="sidebar-inner">
           {/* Header: бренд слева; X — только mobile; minify-toggle — только desktop */}
           <header className="sidebar-header">
-            <a className="sidebar-brand" href="/" aria-label="Xkadzama — на главную">Xkadzama</a>
+            <Link className="sidebar-brand" to={brandTo} aria-label={`${brandLabel} — на главную`}>
+              {brandLabel}
+            </Link>
 
             <div className="sidebar-close-wrap">
               {/* Close Button (mobile) */}
@@ -222,7 +232,7 @@ export default function Sidebar({ state, setState, ready }) {
           <nav className="sidebar-body" aria-label="Основная навигация">
             <div className="sidebar-group">
               <ul className="sidebar-list">
-                {NAV.map((item) =>
+                {items.map((item) =>
                   item.kind === 'link'
                     ? <SidebarLink key={item.to + item.label} item={item} />
                     : <AccordionSection key={item.id} item={item} controlled openId={openId} setOpenId={setOpenId} />

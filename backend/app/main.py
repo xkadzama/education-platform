@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.api import auth, lessons
+from app.api import admin, auth, lessons
 from app.core.bootstrap import ensure_initial_superuser
 from app.core.config import CORS_ORIGINS, UPLOADS_DIR
 from app.core.logging import configure_app_logging
@@ -43,6 +43,7 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(lessons.router)
+app.include_router(admin.router)
 
 app.mount('/uploads', StaticFiles(directory=UPLOADS_DIR), name='uploads')
 

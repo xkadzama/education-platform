@@ -5,6 +5,7 @@ import ProtectedRoute from './auth/ProtectedRoute'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Admin from './pages/Admin'
+import AdminUsers from './pages/AdminUsers'
 import AppLayout from './components/AppLayout'
 import Dashboard from './pages/Dashboard'
 import Profile from './pages/Profile'
@@ -24,7 +25,10 @@ function AppContent() {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       {/* Отдельная страница входа для суперпользователя; вне AppLayout */}
-      <Route path="/admin" element={<Admin />} />
+      <Route path="/admin" element={<Admin />}>
+        <Route index element={<Navigate to="users" replace />} />
+        <Route path="users" element={<AdminUsers />} />
+      </Route>
       {/* Каркас (шапка + сайдбар) монтируется ОДИН раз и не пересоздаётся
           при переходах между страницами — контент подменяется динамически
           через <Outlet/> внутри AppLayout. Дочерние маршруты объявлены

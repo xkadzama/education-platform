@@ -57,6 +57,10 @@ async def main() -> int:
 			print('admin login as student:', resp.status_code)
 			ok &= resp.status_code == 403
 
+			resp = await client.get('/api/admin/users', headers=headers)
+			print('admin users as student:', resp.status_code)
+			ok &= resp.status_code == 403
+
 			resp = await client.get('/api/lessons', headers=headers)
 			print('lessons:', resp.status_code, 'count =', len(resp.json()))
 			resp.raise_for_status()

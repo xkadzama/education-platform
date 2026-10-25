@@ -1,7 +1,13 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
+import AppLayout from '../components/AppLayout'
+import AdminHeader from '../components/AdminHeader'
 import './Auth.css'
+
+const ADMIN_NAV = [
+  { kind: 'link', to: '/admin/users', label: 'Пользователи', icon: 'users' },
+]
 
 function extractError(err) {
   const status = err?.response?.status
@@ -13,16 +19,13 @@ function extractError(err) {
   return detail || err?.message || 'Не удалось подключиться к серверу'
 }
 
-// /admin: отдельная страница вне основного каркаса.
-// Показывает форму входа, а после успешного admin-login — заглушку панели.
-export default function Admin() {
+// Форма входа в админку. Рендерится, пока в контексте нет superuser.
+function AdminLogin() {
   const { user, adminLogin, logout } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
-
-  const isSuperuser = user?.role === 'superuser'
 
   async function handleSubmit(event) {
     event.preventDefault()
@@ -35,36 +38,6 @@ export default function Admin() {
     } finally {
       setSubmitting(false)
     }
-  }
-
-  if (isSuperuser) {
-    return (
-      <div className="auth-page">
-        <div className="card">
-          <div className="auth-card-header">
-            <p className="brand">Xkadzama<span>.</span></p>
-            <h1>Админ-панель</h1>
-            <p className="text-secondary">
-              Вы вошли как суперпользователь. Разделы управления появятся позже.
-            </p>
-          </div>
-
-          <ul className="user-info">
-            <li><strong>Email</strong><span>{user.email}</span></li>
-            <li><strong>Роль</strong><span>{user.role}</span></li>
-          </ul>
-
-          <button type="button" className="btn btn-primary btn-block" onClick={logout}>
-            Выйти
-          </button>
-
-          <hr className="divider" />
-          <p className="text-secondary auth-footer">
-            <Link to="/">Перейти на сайт</Link>
-          </p>
-        </div>
-      </div>
-    )
   }
 
   return (
@@ -128,5 +101,20 @@ export default function Admin() {
         )}
       </form>
     </div>
+  )
+}
+
+// /admin — точка входа админки. Пока нет superuser, показываем форму;
+// после входа — общий каркас с админским сайдбаром и <Outlet/>.
+export default function Admin() {
+  const { user } = useAuth()
+  if (user?.role !== 'superuser') return <AdminLogin />
+
+  return (
+    <AppLayout
+      items={ADMIN_NAV}
+      brandTo="/admin/users"
+      header={<AdminHeader />}
+    />
   )
 }

@@ -1394,3 +1394,117 @@ components.css, журнал) — будут добавлены в staging area 
 ### Статус
 
 Изменения в рабочем дереве, коммит не создавался.
+
+
+---
+
+## 2026-10-25 — Админка: сайдбар и список пользователей
+
+### Backend
+
+1. `app/schemas/admin.py` (новый): `AdminUserItem` (id, first_name,
+   last_name) и `AdminUsersPage` (items, total, page, per_page, pages).
+2. `app/api/admin.py` (новый): `GET /api/admin/users` под
+   `require_role('superuser')`.
+   - поиск по полному ФИ: `lower(concat(last_name, ' ', first_name)) LIKE`,
+     регистр не учитывается;
+   - `%`, `_` и `\` экранируются — ввод не превращается в LIKE-шаблон;
+   - пагинация `page`/`per_page` (по умолчанию 20, максимум 100), при
+     `page > pages` возвращается последняя страница;
+   - сортировка по фамилии/имени, отдаются только ФИ и id.
+3. `app/main.py` — подключён `admin.router`.
+4. `scripts/smoke_api.py` — добавлена проверка: студент получает 403 на
+   `/api/admin/users`.
+
+### Frontend
+
+1. `components/Sidebar.jsx` — параметризован:
+   - `items` (по умолчанию прежний NAV с «Уроки»),
+   - `brandTo`, `brandLabel`;
+   - бренд теперь `<Link>` (SPA-переход), добавлена иконка `users`.
+2. `components/AppLayout.jsx` — принимает `items`, `brandTo`, `header`
+   (по умолчанию прежние `AppHeader`/студенческий NAV). Поведение сайдбара
+   (open/mini/hidden, бургер, мобильный overlay, Escape) не менялось.
+3. `components/AdminHeader.jsx` (новый): заголовок «Админ-панель», email
+   суперпользователя и кнопка «Выйти».
+4. `pages/Admin.jsx`:
+   - `AdminLogin` — прежняя форма входа (вынесена во внутренний компонент);
+   - `Admin` — если роли superuser нет, показывает форму; иначе рендерит
+     `AppLayout` с админским пунктом «Пользователи» и `AdminHeader`.
+5. `pages/AdminUsers.jsx` (новый):
+   - `GET /api/admin/users` с поиском и пагинацией;
+   - поиск с debounce 300 мс; отдельный `reloadKey`, чтобы запрос выполнялся
+     даже при неизменном `trim()` (пробелы в конце) и не оставался вечный
+     loading;
+   - список ФИ, по 10 на страницу, «Назад/Вперёд» и
+     «Страница X из Y · всего N»;
+   - loading/error/empty состояния и кнопка «Повторить».
+6. `App.jsx` — вложенные маршруты:
+   `/admin` (форма или каркас) → index redirect → `/admin/users`.
+7. `styles/components.css` — стили `.admin-header-*`, `.admin-users-search`,
+   `.admin-user-list/-row`, `.admin-pagination`; на мобильных email скрывается,
+   кнопки пагинации растягиваются.
+
+### Проверки
+
+- API (реальный backend + PostgreSQL):
+  - `/api/admin/users?per_page=10` → 12 пользователей, 2 страницы;
+  - поиск `КАРТОЕВ` (верхний регистр) → 2 записи;
+  - `%`, `_`, `99%` → 0 записей (LIKE-экранирование работает);
+  - `page=99` → сервер вернул страницу 2 (clamp);
+  - без токена → 401, студент → 403, superuser → 200.
+- Headless Chrome (CDP):
+  - вход на `/admin` → редирект на `/admin/users`;
+  - сайдбар с одним пунктом «Пользователи», шапка с email и «Выйти»;
+  - 10 строк, «Страница 1 из 2 · всего 12»;
+  - поиск `КАРТОЕВ` → «Картоев Хусейн», «Картоева Фатима»;
+  - страница 2 → 2 строки;
+  - бургер: open → mini → open (классы `sidebar-minified`).
+- `npm run build` — OK; oxlint — 0 errors (2 предсуществующих warning).
+- Backend unit-тесты: 31 OK; smoke — OK.
+
+### Статус
+
+Изменения в рабочем дереве, коммит не создавался.
+
+
+---
+
+## 2026-10-25 — Список пользователей: роль и статус аккаунта
+
+### Backend
+
+- `app/schemas/admin.py`: в `AdminUserItem` добавлены `role: str` и
+  `is_active: bool` (по-прежнему только публичные поля, без email/хеша).
+- `app/api/admin.py`: маппинг ORM → DTO теперь передаёт `role` и `is_active`.
+- Миграций не требовалось.
+
+### Frontend
+
+- `pages/AdminUsers.jsx`: строка `.admin-user-row` теперь состоит из:
+  - `.admin-user-name` — ФИ;
+  - `.admin-user-role` — бейдж роли (`student`, `superuser` и т.д.);
+  - `.admin-user-status.is-active|.is-inactive` — точка статуса с
+    `role="img"`, `aria-label` и `title` («Аккаунт активен/деактивирован»).
+- `styles/components.css`:
+  - строка — flex (имя тянется, роль и точка фиксированы);
+  - бейдж роли — серый pill, 12px, uppercase;
+  - активная точка — `#1a9c4c` с зелёным halo;
+  - неактивная — `--color-error` (#d93025) с красным halo.
+
+### Проверка
+
+- API `/api/admin/users` возвращает поля `role` и `is_active`.
+- Headless Chrome:
+  - активный суперпользователь: `Admin Super`, роль `superuser`,
+    класс `is-active`, вычисленный цвет точки `rgb(26, 156, 76)`;
+  - временный деактивированный пользователь (`Тестов Деактивированный`,
+    `role=student`, `is_active=false`): класс `is-inactive`, цвет
+    `rgb(217, 48, 37)`, aria-label «Аккаунт деактивирован»;
+  - поиск по ФИ при этом работает без учёта регистра.
+- Временный пользователь удалён, БД вернулась к 12 записям.
+- Build/oxlint — OK; backend-тесты/схема не затронуты.
+
+### Статус
+
+Изменения в рабочем дереве, коммит не создавался.

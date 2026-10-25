@@ -26,7 +26,11 @@ function initialSidebarState() {
   return window.matchMedia(DESKTOP_QUERY).matches ? 'open' : 'hidden'
 }
 
-export default function AppLayout() {
+export default function AppLayout({
+  items,
+  brandTo = '/',
+  header = <AppHeader />,
+}) {
   const [state, setState] = useState(initialSidebarState)   // 'open' | 'mini' | 'hidden'
   const [ready, setReady] = useState(false)
 
@@ -63,7 +67,7 @@ export default function AppLayout() {
   return (
     <div className={`app-shell sidebar-state-${state}${ready ? ' is-ready' : ''}`}
       style={{ '--sb-live': widthVar }}>
-      <AppHeader />
+      {header}
       {/* --sb-live = фактическая ширина панели: content-push контента
           (.app-content) и сдвиг шапки (.app-header-inner) наследуют токен
           от app-shell; transition'ы синхронны с анимацией .sidebar (0.3s) */}
@@ -84,7 +88,7 @@ export default function AppLayout() {
           </button>
         </div>
 
-        <Sidebar state={state} setState={setState} ready={ready} />
+        <Sidebar state={state} setState={setState} ready={ready} items={items} brandTo={brandTo} />
 
         {/* Content (в эталоне — div с sm:hs-overlay-layout-open:ms-64) */}
         <main className="app-content">
