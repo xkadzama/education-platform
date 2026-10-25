@@ -92,21 +92,30 @@ async def login(
 	кнопка Authorize в Swagger UI.
 	"""
 	user = await _authenticate(form_data.username, form_data.password, session)
+
+	# Администраторы и суперпользователь входят ТОЛЬКО через /admin.
+	# Иначе один и тот же аккаунт мог бы получить студенческую сессию.
+	if user.role in {'superuser', 'admin'}:
+		raise HTTPException(
+			status_code=status.HTTP_403_FORBIDDEN,
+			detail='Admin accounts must sign in through the admin panel',
+		)
+
 	return _token_pair(user)
 
 
-# --- Вход в админку: только для role='superuser' ------------------------------
+# --- Вход в админку: только для role='superuser'/'admin' ----------------------
 @router.post('/admin-login', response_model=TokenResponse)
 async def admin_login(
 	form_data: OAuth2PasswordRequestForm = Depends(),
 	session: AsyncSession = Depends(get_db),
 ):
-	"""Вход в админку: обычный студент получает 403, даже с верным паролем."""
+	"""Вход в админку: superuser и admin; студент получает 403."""
 	user = await _authenticate(form_data.username, form_data.password, session)
-	if user.role != 'superuser':
+	if user.role not in {'superuser', 'admin'}:
 		raise HTTPException(
 			status_code=status.HTTP_403_FORBIDDEN,
-			detail='Superuser access required',
+			detail='Admin access required',
 		)
 	return _token_pair(user)
 

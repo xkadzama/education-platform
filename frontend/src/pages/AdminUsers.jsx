@@ -1,11 +1,31 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api/client'
+import AdminUserModal from '../components/AdminUserModal'
 
 const PER_PAGE = 10
 
+const ROLE_FILTER_OPTIONS = [
+  { value: 'student', label: 'Студент' },
+  { value: 'teacher', label: 'Преподаватель' },
+  { value: 'admin', label: 'Администратор' },
+  { value: 'superuser', label: 'Суперадминистратор' },
+]
+
+const STATUS_OPTIONS = [
+  { value: 'all', label: 'Все' },
+  { value: 'active', label: 'Активные' },
+  { value: 'inactive', label: 'Удалённые' },
+]
+
+const SORT_OPTIONS = [
+  { value: 'created_desc', label: 'Сначала новые' },
+  { value: 'created_asc', label: 'Сначала старые' },
+  { value: 'name', label: 'По ФИ' },
+]
+
 function extractError(err) {
   const status = err?.response?.status
-  if (status === 403) return 'Нет прав суперпользователя.'
+  if (status === 403) return 'Нет прав администратора.'
   if (status === 401) return 'Сессия истекла — войдите в админку заново.'
   const detail = err?.response?.data?.detail
   if (Array.isArray(detail)) return detail[0]?.msg || 'Ошибка запроса'
@@ -15,10 +35,14 @@ function extractError(err) {
 export default function AdminUsers() {
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [roleFilter, setRoleFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [sort, setSort] = useState('created_desc')
   const [page, setPage] = useState(1)
   const [reloadKey, setReloadKey] = useState(0)
   const [status, setStatus] = useState('loading') // loading | idle | error
   const [error, setError] = useState('')
+  const [selectedUserId, setSelectedUserId] = useState(null)
   const [data, setData] = useState({
     items: [],
     total: 0,
@@ -49,15 +73,18 @@ export default function AdminUsers() {
 
   useEffect(() => {
     let cancelled = false
+    const params = {
+      search: debouncedSearch,
+      page,
+      per_page: PER_PAGE,
+      sort,
+    }
+    if (roleFilter) params.role = roleFilter
+    if (statusFilter === 'active') params.is_active = true
+    if (statusFilter === 'inactive') params.is_active = false
 
     api
-      .get('/api/admin/users', {
-        params: {
-          search: debouncedSearch,
-          page,
-          per_page: PER_PAGE,
-        },
-      })
+      .get('/api/admin/users', { params })
       .then((res) => {
         if (cancelled) return
         setData(res.data)
@@ -70,7 +97,7 @@ export default function AdminUsers() {
       })
 
     return () => { cancelled = true }
-  }, [debouncedSearch, page, reloadKey])
+  }, [debouncedSearch, page, reloadKey, roleFilter, statusFilter, sort])
 
   const goToPage = (nextPage) => {
     if (nextPage < 1 || nextPage > data.pages || nextPage === page) return
@@ -83,6 +110,28 @@ export default function AdminUsers() {
     setStatus('loading')
     setError('')
     setReloadKey((key) => key + 1)
+  }
+
+  const changeFilter = (setter, currentValue, nextValue) => {
+    if (nextValue === currentValue) return
+    setStatus('loading')
+    setError('')
+    setPage(1)
+    setter(nextValue)
+  }
+
+  const hasFilters = Boolean(debouncedSearch || roleFilter) || statusFilter !== 'all'
+
+  // После смены роли/деактивации обновляем строку без перезагрузки списка.
+  const handleUserUpdated = (updated) => {
+    setData((previous) => ({
+      ...previous,
+      items: previous.items.map((item) => (
+        item.id === updated.id
+          ? { ...item, role: updated.role, is_active: updated.is_active }
+          : item
+      )),
+    }))
   }
 
   return (
@@ -103,6 +152,48 @@ export default function AdminUsers() {
           aria-label="Поиск по фамилии и имени"
         />
 
+        <div className="admin-users-filters">
+          <label className="admin-filter">
+            <span>Роль</span>
+            <select
+              className="input"
+              value={roleFilter}
+              onChange={(event) => changeFilter(setRoleFilter, roleFilter, event.target.value)}
+            >
+              <option value="">Все роли</option>
+              {ROLE_FILTER_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+
+          <label className="admin-filter">
+            <span>Аккаунт</span>
+            <select
+              className="input"
+              value={statusFilter}
+              onChange={(event) => changeFilter(setStatusFilter, statusFilter, event.target.value)}
+            >
+              {STATUS_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+
+          <label className="admin-filter">
+            <span>Сортировка</span>
+            <select
+              className="input"
+              value={sort}
+              onChange={(event) => changeFilter(setSort, sort, event.target.value)}
+            >
+              {SORT_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+
         {status === 'loading' && (
           <p className="text-secondary" role="status">Загружаем пользователей…</p>
         )}
@@ -118,7 +209,7 @@ export default function AdminUsers() {
 
         {status === 'idle' && data.items.length === 0 && (
           <p className="text-secondary">
-            {debouncedSearch ? 'Пользователи не найдены.' : 'Пользователей пока нет.'}
+            {hasFilters ? 'По выбранным фильтрам ничего не найдено.' : 'Пользователей пока нет.'}
           </p>
         )}
 
@@ -127,18 +218,25 @@ export default function AdminUsers() {
             <ul className="admin-user-list">
               {data.items.map((user) => (
                 <li key={user.id} className="admin-user-row">
-                  <span className="admin-user-name">
-                    {user.last_name} {user.first_name}
-                  </span>
-                  <span className="admin-user-role">{user.role}</span>
-                  <span
-                    className={`admin-user-status ${user.is_active ? 'is-active' : 'is-inactive'}`}
-                    role="img"
-                    aria-label={user.is_active ? 'Аккаунт активен' : 'Аккаунт деактивирован'}
-                    title={user.is_active ? 'Аккаунт активен' : 'Аккаунт деактивирован'}
+                  <button
+                    type="button"
+                    className="admin-user-open"
+                    onClick={() => setSelectedUserId(user.id)}
+                    aria-label={`Открыть карточку: ${user.last_name} ${user.first_name}`}
                   >
-                    <span className="admin-user-status-dot" aria-hidden="true" />
-                  </span>
+                    <span className="admin-user-name">
+                      {user.last_name} {user.first_name}
+                    </span>
+                    <span className="admin-user-role">{user.role}</span>
+                    <span
+                      className={`admin-user-status ${user.is_active ? 'is-active' : 'is-inactive'}`}
+                      role="img"
+                      aria-label={user.is_active ? 'Аккаунт активен' : 'Аккаунт деактивирован'}
+                      title={user.is_active ? 'Аккаунт активен' : 'Аккаунт деактивирован'}
+                    >
+                      <span className="admin-user-status-dot" aria-hidden="true" />
+                    </span>
+                  </button>
                 </li>
               ))}
             </ul>
@@ -171,6 +269,14 @@ export default function AdminUsers() {
           </>
         )}
       </div>
+
+      {selectedUserId && (
+        <AdminUserModal
+          userId={selectedUserId}
+          onClose={() => setSelectedUserId(null)}
+          onUserUpdated={handleUserUpdated}
+        />
+      )}
     </div>
   )
 }

@@ -58,8 +58,11 @@ PostgreSQL (edudb)
    проверяет подпись, срок и тип, поэтому access и refresh не взаимозаменяемы.
 4. `get_current_user` загружает пользователя из БД и проверяет `is_active`.
 5. `POST /auth/refresh` принимает refresh-токен в JSON и выдаёт новую пару.
-6. `POST /auth/admin-login` использует ту же проверку, но выдаёт токены только
-   пользователю с `role='superuser'`; остальным — 403.
+6. `POST /auth/login` выдаёт токены только `student`/`teacher`; для
+   `admin`/`superuser` возвращает 403 `Admin accounts must sign in through the
+   admin panel`.
+7. `POST /auth/admin-login` использует ту же проверку, но выдаёт токены только
+   пользователям с `role='superuser'` или `role='admin'`; остальным — 403.
 
 Токены stateless: отзыва и ротации refresh пока нет. На фронтенде они лежат в
 `localStorage`; для production предпочтительнее refresh в httpOnly-cookie.
@@ -94,10 +97,27 @@ PostgreSQL (edudb)
 ### Админские пользователи
 
 `GET /api/admin/users` (`app/api/admin.py`) защищён
-`require_role('superuser')` и отдаёт `id`, `first_name`, `last_name`, `role`,
-`is_active` с пагинацией (`page`, `per_page` ≤ 100) и поиском по полному ФИ. Поиск
-регистронезависимый (`lower(concat(last_name, ' ', first_name)) LIKE`), `%` и
-`_` экранируются. Сортировка — по фамилии/имени. Фронтенд: `/admin/users`.
+`require_role('superuser', 'admin')` и отдаёт `id`, `first_name`, `last_name`,
+`role`, `is_active` с пагинацией (`page`, `per_page` ≤ 100). Параметры:
+`search` (по полному ФИ, регистронезависимо, `%`/`_` экранируются),
+`role` (`student|teacher|admin|superuser`), `is_active` (`true|false`),
+`sort` (`created_desc|created_asc|name`; по умолчанию `created_desc`).
+Фронтенд: `/admin/users` с селектами «Роль», «Аккаунт», «Сортировка».
+
+Дополнительно:
+
+- `GET /api/admin/users/{id}` — карточка: email, avatar_url, created_at,
+  role, is_active;
+- `PATCH /api/admin/users/{id}/role` — `Literal['student','teacher','admin']`;
+- `POST /api/admin/users/{id}/deactivate` — мягкое удаление (`is_active=false`),
+  идемпотентно;
+- `POST /api/admin/users/{id}/activate` — восстановление (`is_active=true`),
+  идемпотентно;
+- все три endpoint'а требуют `superuser` или `admin`;
+- `admin` может менять роли только на `student`/`teacher`; назначение `admin`
+  разрешено только `superuser` (backend отвечает 403 на `role='admin'` от admin);
+- аккаунт с `role='superuser'` защищён: попытка смены роли/деактивации даёт 400,
+  чтобы нельзя было потерять единственного администратора.
 
 ### Аватар
 
@@ -155,6 +175,9 @@ main.jsx
   при 401 делает один общий refresh и повторяет запрос; при неудаче чистит
   токены и шлёт `auth:logout`.
 - `ProtectedRoute` без пользователя редиректит на `/login`.
+- `/login` для admin/superuser показывает ошибку и ссылку на `/admin`; если
+  привилегированный пользователь уже авторизован, `/login` редиректит его в
+  `/admin`.
 - `/admin` — форма входа вне каркаса; `adminLogin` вызывает
   `/auth/admin-login`. После входа тот же `AppLayout` рендерит админский
   сайдбар (пункт «Пользователи»), `AdminHeader` с email/выходом и `<Outlet/>`;
@@ -162,7 +185,13 @@ main.jsx
 - `AdminUsers` запрашивает `/api/admin/users` с `search`, `page`, `per_page=10`;
   поиск дебаунсится на 300 мс, пагинация — внизу списка. В строке — ФИ, бейдж
   роли и статус-точка: зелёная для `is_active=true`, красная для `false`
-  (с `aria-label`/`title`).
+  (с `aria-label`/`title`). Клик по строке открывает `AdminUserModal`:
+  аватар/ФИ/почта/роль/дата создания, кнопки деактивации (с подтверждением) и
+  смены роли. У деактивированного пользователя кнопка удаления заменяется на
+  «Восстановить аккаунт». Superuser видит в select
+  студент/преподаватель/администратор, admin — только студент/преподаватель
+  (и пояснение, что назначать администраторов может только superuser). После
+  действия строка списка обновляется без перезагрузки.
 - `Profile` сам запрашивает `/auth/me`, нормализует поля и после загрузки
   аватара обновляет и контекст, и локальный снимок.
 - `Lessons` запрашивает `/api/lessons`, показывает loading/error/retry, группы
@@ -184,8 +213,11 @@ mini sidebar»: ширины 256px/52px, мобильный overlay, анима�
 
 ## 5. Ограничения текущего этапа
 
-- админка: вход + список пользователей (поиск/пагинация); CRUD уроков,
-  загрузки презентаций и управления ролями ещё нет;
+- админка: вход, список пользователей (поиск/пагинация), карточка,
+  деактивация и смена роли student/teacher/admin; CRUD уроков и загрузки
+  презентаций ещё нет;
+- `admin` имеет доступ к текущей админке, но не может назначать других
+  администраторов (это право superuser);
 - уроки и презентации пока добавляются SQL/миграцией/вручную;
 - нет эндпоинта отметки прохождения — `lesson_progress` наполняется вручную;
 - загрузка PPTX и конвертация в PDF автоматизированы только вручную;

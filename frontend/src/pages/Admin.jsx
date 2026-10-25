@@ -11,7 +11,7 @@ const ADMIN_NAV = [
 
 function extractError(err) {
   const status = err?.response?.status
-  if (status === 403) return 'Нет прав суперпользователя.'
+  if (status === 403) return 'Нет прав администратора.'
   if (status === 401) return 'Неверный email или пароль.'
 
   const detail = err?.response?.data?.detail
@@ -46,7 +46,7 @@ function AdminLogin() {
         <div className="auth-card-header">
           <p className="brand">Xkadzama<span>.</span></p>
           <h1>Админ-панель</h1>
-          <p className="text-secondary">Вход только для суперпользователя.</p>
+          <p className="text-secondary">Вход для администраторов.</p>
         </div>
 
         {user && (
@@ -108,7 +108,7 @@ function AdminLogin() {
 // после входа — общий каркас с админским сайдбаром и <Outlet/>.
 export default function Admin() {
   const { user } = useAuth()
-  if (user?.role !== 'superuser') return <AdminLogin />
+  if (user?.role !== 'superuser' && user?.role !== 'admin') return <AdminLogin />
 
   return (
     <AppLayout

@@ -1508,3 +1508,280 @@ components.css, журнал) — будут добавлены в staging area 
 ### Статус
 
 Изменения в рабочем дереве, коммит не создавался.
+
+
+---
+
+## 2026-10-26 — Карточка пользователя: деактивация и смена роли
+
+### Backend
+
+- `app/schemas/admin.py`:
+  - `AdminUserDetail` (наследует `AdminUserItem`): `email`, `avatar_url`,
+    `created_at`;
+  - `AdminRoleUpdate`: `Literal['student', 'teacher', 'admin']`.
+- `app/api/admin.py` (все под `require_role('superuser')`):
+  - `GET /api/admin/users/{id}` — карточка;
+  - `PATCH /api/admin/users/{id}/role` — смена роли, `superuser` выдать нельзя;
+  - `POST /api/admin/users/{id}/deactivate` — `is_active=false`, идемпотентно;
+  - защита `superuser`: деактивация/смена роли такого аккаунта → 400
+    «Superuser account cannot be modified»;
+  - `created_at`/`avatar_url`/`email` отдаются только в detail, не в списке.
+
+### Frontend
+
+- `components/AdminUserModal.jsx` (новый):
+  - модалка с аватаром (или инициалами), именем, фамилией, почтой, ролью и
+    датой создания;
+  - кнопки «Удалить аккаунт» и «Сменить роль»;
+  - удаление → вложенная модалка «Вы уверены?» с «Да/Нет»; «Да» вызывает
+    `deactivate`, обновляет строку и закрывает карточку;
+  - смена роли → вложенная модалка с `<select>` (Студент / Преподаватель /
+    Администратор) и кнопкой «Применить»; после успеха обновляются карточка и
+    бейдж роли в списке;
+  - Escape закрывает верхний слой, блокировка прокрутки body, закрытие по
+    клику на backdrop, `aria-modal`/`aria-labelledby`;
+  - для superuser кнопки отключены и показано пояснение.
+- `pages/AdminUsers.jsx`:
+  - строка списка стала кнопкой `.admin-user-open` → открывает модалку;
+  - `handleUserUpdated` обновляет `role`/`is_active` строки без перезагрузки
+    списка;
+  - `selectedUserId` + рендер `AdminUserModal`.
+- `styles/components.css`:
+  - `.btn-danger` (красная outline-кнопка);
+  - `.modal-backdrop`, `.modal-card`, `.modal-card-small`, `.modal-close`,
+    `.modal-title`, `.modal-actions`;
+  - `.admin-user-modal-head/-name/-inactive/-meta/-actions/-note`,
+    `.admin-role-select`;
+  - мобильные правила для кнопок/card.
+
+### Проверка
+
+- Реальный API (временный пользователь, затем удалён):
+  - detail 200: email, avatar_url=null, created_at, role, is_active;
+  - смена роли student → teacher — 200;
+  - deactivate — 200, `is_active=false`; вход деактивированного → 403
+    «Account is disabled»;
+  - попытка деактивировать/понизить superuser → 400;
+  - `role='superuser'` в PATCH → 422 (Literal);
+  - `id` несуществующего пользователя → 404.
+- Headless Chrome:
+  - карточка: «Модальный Тестов», аватар «МТ», поля Имя/Фамилия/Почта/Роль/
+    Дата создания («26 октября 2026 г.»), обе кнопки активны;
+  - select: «Студент», «Преподаватель», «Администратор»;
+  - после «Применить» — роль в карточке «Преподаватель», в списке `teacher`;
+  - «Удалить аккаунт» → «Вы уверены?» (Да/Нет) → после «Да» модалка закрылась,
+    в списке `is-inactive` и красная точка;
+  - повторное открытие: «Аккаунт деактивирован», кнопка удаления disabled;
+  - временный пользователь после проверки удалён, БД снова 12 записей.
+- `npm run build` — OK; oxlint 0 errors (2 старых warning); backend 31 test OK;
+  миграции не менялись.
+
+### Статус
+
+Изменения в рабочем дереве, коммит не создавался.
+
+
+---
+
+## 2026-10-26 — Роль admin: вход в админку и ограничение назначения admin
+
+### Backend
+
+- `app/api/auth.py`: `POST /auth/admin-login` теперь пускает
+  `role in {'superuser', 'admin'}`; студент получает 403 с detail
+  `Admin access required`.
+- `app/api/admin.py`: все `/api/admin/*` используют
+  `require_role('superuser', 'admin')`.
+- `PATCH /api/admin/users/{id}/role`: если текущий пользователь — `admin` и
+  запрошена роль `admin`, возвращается 403
+  `Admin cannot assign administrator role`. `superuser` может назначать admin.
+- Защита аккаунта `superuser` (нельзя деактивировать/понизить) сохранена и
+  действует для admin тоже.
+
+### Frontend
+
+- `pages/Admin.jsx`: админский каркас показывается для `superuser` и `admin`
+  (раньше только superuser); текст формы — «Вход для администраторов».
+- `components/AdminHeader.jsx`: рядом с email появился бейдж текущей роли
+  (`superuser`/`admin`).
+- `components/AdminUserModal.jsx`:
+  - `canAssignAdmin = currentUser.role === 'superuser'`;
+  - admin видит в select только «Студент»/«Преподаватель»;
+  - если у цели роль admin, admin видит её как disabled-опцию
+    «Администратор (недоступно)» и может только понизить до student/teacher;
+  - кнопка «Применить» disabled, пока роль не изменена;
+  - для admin выводится пояснение, что назначать администраторов может только
+    superuser;
+  - client-side guard в `applyRole` дублирует серверный;
+  - 403-сообщения теперь «Нет прав администратора».
+- `pages/AdminUsers.jsx`: 403-сообщение обновлено.
+
+### Проверка
+
+- API (временные admin и target, затем удалены):
+  - `/auth/admin-login` новым `admin` — 200;
+  - `GET /api/admin/users` и `GET /api/admin/users/{id}` под admin — 200;
+  - admin меняет student → teacher — 200;
+  - admin пытается назначить `admin` — 403 `Admin cannot assign administrator role`;
+  - admin деактивирует target — 200, `is_active=false`;
+  - admin пытается деактивировать/понизить superuser — 400;
+  - superuser назначает target роль admin — 200.
+- Headless Chrome:
+  - вход через `/admin` новым администратором → `/admin/users`;
+  - в шапке роль `admin`, в сайдбаре «Пользователи»;
+  - select у admin: только «Студент», «Преподаватель» + пояснение;
+  - смена роли на teacher и деактивация через UI — OK (красная точка);
+  - после входа под superuser select снова содержит «Администратор» и без
+    пояснения.
+- Временные пользователи удалены, БД снова 12 записей.
+- Build/oxlint — OK; backend 31 test OK; миграции не менялись.
+
+### Статус
+
+Изменения в рабочем дереве, коммит не создавался.
+
+
+---
+
+## 2026-10-26 — Восстановление деактивированного аккаунта
+
+### Backend
+
+- `app/api/admin.py`: новый `POST /api/admin/users/{id}/activate`:
+  - доступ `superuser`/`admin` (`require_role`);
+  - `is_active=true`, идемпотентно;
+  - защита `superuser` сохранена (`_ensure_modifiable`);
+  - возвращает `AdminUserDetail`.
+- Миграций не требовалось.
+
+### Frontend
+
+- `components/AdminUserModal.jsx`:
+  - для `is_active=false` кнопка «Удалить аккаунт» заменяется на
+    **«Восстановить аккаунт»**;
+  - вызов `POST .../activate`, состояния busy/error;
+  - после успеха `setUser` + `onUserUpdated`: карточка и строка списка сразу
+    показывают активный статус, зелёную точку и снова «Удалить аккаунт»;
+  - «Сменить роль» остаётся доступной.
+- CSS не менялся — используются существующие `.btn-primary`/`.field-error`.
+
+### Проверка
+
+- API (временные admin/target, затем удалены):
+  - admin деактивирует target → `is_active=false`, вход target → 403;
+  - `POST .../activate` → `is_active=true`, вход снова 200;
+  - повторный activate → 200, без изменений;
+  - список отражает активный статус.
+- Headless Chrome на деактивированном пользователе:
+  - в карточке «Аккаунт деактивирован», кнопки «Восстановить аккаунт» и
+    «Сменить роль»;
+  - после «Восстановить»: плашка исчезла, кнопка снова «Удалить аккаунт»,
+    в списке зелёная точка `is-active`.
+- Временный пользователь удалён, в БД снова 12 записей.
+- Build/oxlint — OK; backend 31 test OK.
+
+### Статус
+
+Изменения в рабочем дереве, коммит не создавался.
+
+
+---
+
+## 2026-10-26 — Администраторы входят только через /admin
+
+### Backend
+
+- `POST /auth/login`: после успешной проверки пароля роли `admin` и
+  `superuser` получают 403 с detail
+  `Admin accounts must sign in through the admin panel`. Студенческие токены
+  для привилегированных аккаунтов больше не выдаются.
+- `POST /auth/admin-login` без изменений: пускает `admin`/`superuser`.
+- Другие роли (`student`, `teacher`) продолжают входить через `/auth/login`.
+
+### Frontend
+
+- `pages/Login.jsx`:
+  - распознаёт detail о входе администратора и показывает
+    «Этот аккаунт администратора. Войдите через админ-панель.»;
+  - добавлена ссылка «Администратор? Войти в админ-панель» → `/admin`;
+  - если admin/superuser уже авторизован и открывает `/login`, происходит
+    редирект в `/admin` (а не на студенческий `/`).
+- Токены при неудачной попытке не сохраняются.
+
+### Проверка
+
+- API (временные admin/student, затем удалены):
+  - admin `/auth/login` → **403** `Admin accounts must sign in through the
+    admin panel`;
+  - admin `/auth/admin-login` → **200**;
+  - student `/auth/login` → **200**;
+  - student `/auth/admin-login` → **403** `Admin access required`.
+- Headless Chrome:
+  - `/login` с данными admin: ошибка «Этот аккаунт администратора…», ссылка
+    `/admin`, `access_token` не сохранён;
+  - `/admin` с теми же данными: `/admin/users`, бейдж роли `admin`;
+  - авторизованный admin при заходе на `/login` попадает на `/admin/users`.
+- `npm run build` — OK; backend 31 test OK; миграции не менялись.
+
+### Статус
+
+Изменения в рабочем дереве, коммит не создавался.
+
+
+---
+
+## 2026-10-26 — Фильтры и сортировка списка пользователей
+
+### Backend
+
+- `GET /api/admin/users` (`app/api/admin.py`) получил параметры:
+  - `role: Literal['student','teacher','admin','superuser'] | None` — только
+    доступные роли, иначе 422;
+  - `is_active: bool | None` — `true` (активные), `false` (удалённые), не задан
+    (все);
+  - `sort: Literal['name','created_desc','created_asc']`, по умолчанию
+    `created_desc` (сначала новые по `created_at`).
+- Фильтры применяются одновременно с `search` и к count-, и к list-запросу;
+  пагинация и clamp страницы сохранены.
+- Сортировки: `created_at DESC, id DESC`, `created_at ASC, id ASC`, либо
+  `lower(last_name), lower(first_name), id`.
+
+### Frontend
+
+`pages/AdminUsers.jsx`:
+- состояния `roleFilter`, `statusFilter`, `sort`;
+- параметры запроса: `role`, `is_active`, `sort`; смена фильтра сбрасывает
+  страницу на 1 и показывает loading;
+- селекты:
+  - «Роль»: Все роли / Студент / Преподаватель / Администратор /
+    Суперадминистратор;
+  - «Аккаунт»: Все / Активные / Удалённые;
+  - «Сортировка»: Сначала новые / Сначала старые / По ФИ;
+- пустой результат с активными фильтрами: «По выбранным фильтрам ничего не
+  найдено.»;
+- поиск с debounce 300 мс работает вместе с фильтрами.
+
+`styles/components.css` — `.admin-users-filters`, `.admin-filter`; на мобильных
+фильтры на всю ширину.
+
+### Проверка
+
+- API:
+  - `role=student` → 10 студентов; `role=admin` → 1; `role=superuser` → 1;
+  - `is_active=false` → 2 удалённых; `is_active=true` → 10 активных;
+  - `role=student&is_active=true` → 8; `role=student&is_active=false` → 2;
+  - `sort=created_asc/created_desc` совпадает с порядком `created_at` в БД;
+  - невалидные role/sort → 422.
+- Headless Chrome:
+  - селекты и их опции отображаются;
+  - фильтр «Студент» → только role=student;
+  - «Студент» + «Удалённые» → 2 строки, обе `is-inactive`;
+  - «Сначала старые» → первая страница начинается с самых старых аккаунтов,
+    «Сначала новые» — с новых;
+  - пагинация и общее количество отображаются корректно.
+- `npm run build` — OK; backend 31 test OK; миграции не менялись.
+
+### Статус
+
+Изменения в рабочем дереве, коммит не создавался.

@@ -11,6 +11,7 @@ export default function AdminHeader() {
         <div className="app-header-inner admin-header-inner">
           <span className="admin-header-title">Админ-панель</span>
           <div className="admin-header-actions">
+            {user?.role && <span className="admin-header-role">{user.role}</span>}
             {user?.email && <span className="admin-header-email">{user.email}</span>}
             <button type="button" className="btn btn-secondary btn-sm" onClick={logout}>
               Выйти

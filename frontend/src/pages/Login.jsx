@@ -3,10 +3,15 @@ import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import './Auth.css'
 
+const ADMIN_PANEL_LOGIN_DETAIL = 'Admin accounts must sign in through the admin panel'
+
 // Извлекаем текст ошибки из ответа FastAPI (detail; для 422 — первое сообщение валидатора)
 function extractError(err) {
   const detail = err.response?.data?.detail
   if (Array.isArray(detail)) return detail[0]?.msg || 'Ошибка проверки данных'
+  if (detail === ADMIN_PANEL_LOGIN_DETAIL) {
+    return 'Этот аккаунт администратора. Войдите через админ-панель.'
+  }
   return detail || err.message || 'Не удалось подключиться к серверу'
 }
 
@@ -17,8 +22,10 @@ export default function Login() {
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
-  // Уже авторизованы — не показываем форму
-  if (user) return <Navigate to="/" replace />
+  // Уже авторизованы — не показываем форму. Привилегированные роли — в /admin.
+  if (user) {
+    return <Navigate to={user.role === 'admin' || user.role === 'superuser' ? '/admin' : '/'} replace />
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -83,6 +90,9 @@ export default function Login() {
 
         <p className="text-secondary auth-footer">
           Нет аккаунта? <Link to="/register">Зарегистрироваться</Link>
+        </p>
+        <p className="text-secondary auth-footer">
+          Администратор? <Link to="/admin">Войти в админ-панель</Link>
         </p>
       </form>
     </div>
